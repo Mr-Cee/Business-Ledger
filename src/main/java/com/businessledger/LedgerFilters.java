@@ -22,8 +22,13 @@ final class LedgerFilters extends JPanel {
     private final JTextArea status=new JTextArea(" ",2,0);
     private final javax.swing.Timer delayed;
     private boolean updating,choicesDirty=true;
+    private Runnable applied=()->{};
     @SuppressWarnings("unchecked")
     LedgerFilters(JTable ledger){
+        this(ledger,true);
+    }
+    @SuppressWarnings("unchecked")
+    LedgerFilters(JTable ledger,boolean showAccount){
         super(new BorderLayout(0,3));this.ledger=ledger;
         if(ledger.getRowSorter() instanceof TableRowSorter<?> existing)sorter=(TableRowSorter<TableModel>)existing;
         else{sorter=new TableRowSorter<>(ledger.getModel());ledger.setRowSorter(sorter);}
@@ -32,7 +37,7 @@ final class LedgerFilters extends JPanel {
         WrapPanel basic=new WrapPanel();basic.addField("Search ledger",search);basic.addField("Type",type);basic.add(more);
         JButton clear=new JButton("Clear filters");clear.addActionListener(e->clear());basic.add(clear);add(basic,BorderLayout.NORTH);
         search.setToolTipText("Find all words across ID, date, type, category, amount, payee/customer, notes, account, and edited marker. Case-insensitive; punctuation is literal. Ctrl+F focuses search.");
-        advanced.addField("Category",category);advanced.addField("Account",account);
+        advanced.addField("Category",category);if(showAccount)advanced.addField("Account",account);
         advanced.addField("From",new BusinessLedger.DateChooser(from));advanced.addField("Through",new BusinessLedger.DateChooser(through));
         advanced.addField("Min amount ($)",minimum);advanced.addField("Max amount ($)",maximum);advanced.setVisible(false);add(advanced);
         from.setToolTipText("Optional inclusive start date: YYYY-MM-DD");through.setToolTipText("Optional inclusive end date: YYYY-MM-DD");
@@ -88,7 +93,16 @@ final class LedgerFilters extends JPanel {
             sorter.setRowFilter(new RowFilter<>(){public boolean include(Entry<? extends TableModel,? extends Integer> entry){return false;}});
             status.setText("Filters need attention: "+ex.getMessage()+" No results shown until corrected or cleared.");
         }
+        applied.run();
     }
+    void onApplied(Runnable action){applied=action;applied.run();}
+    LocalDate startDate(){return date(from.getText(),"From");}
+    LocalDate endDate(){return date(through.getText(),"Through");}
+    void setDates(LocalDate start,LocalDate end){
+        updating=true;try{from.setText(start==null?"":start.toString());through.setText(end==null?"":end.toString());more.setSelected(start!=null||end!=null);advanced.setVisible(more.isSelected());}finally{updating=false;}
+        applyNow();revalidate();
+    }
+    void stopPending(){delayed.stop();}
     private static LocalDate date(String text,String label){if(text.isBlank())return null;try{return LocalDate.parse(text.trim());}catch(java.time.format.DateTimeParseException ex){throw new IllegalArgumentException(label+" date must use YYYY-MM-DD.");}}
     private static BigDecimal amount(String text,String label){
         if(text.isBlank())return null;

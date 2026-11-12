@@ -60,7 +60,7 @@ public final class BusinessLedger extends JFrame {
         totals.setBackground(UIManager.getColor("Panel.background"));
         JTabbedPane tabs = new JTabbedPane();
         tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        dashboard = new DashboardPanel(db);
+        dashboard = new DashboardPanel(db,this::openAccountLedger);
         addWindowListener(new java.awt.event.WindowAdapter(){
             @Override public void windowClosing(java.awt.event.WindowEvent event){
                 if(closing)return;closing=true;dashboard.stopPendingRefresh();
@@ -121,6 +121,22 @@ public final class BusinessLedger extends JFrame {
                 } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Unable to start the update: " + ex.getMessage(), "Update not installed", JOptionPane.ERROR_MESSAGE); }
             });
         } finally { closing = false; }
+    }
+
+    private void openAccountLedger(long id,LocalDate start,LocalDate end){
+        dashboard.stopPendingRefresh();
+        try{
+            AccountLedgerPanel page=new AccountLedgerPanel(db,id,start,end,
+                entry->{if(entry.transfer())editTransfer(entry.id());else editTransaction(entry.id());},
+                entry->viewEditHistory(entry.id(),entry.transfer()));
+            JDialog dialog=new JDialog(this,"Account ledger",true);dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);dialog.add(page);
+            JButton close=new JButton("Close");close.addActionListener(e->dialog.dispose());JPanel footer=new JPanel(new FlowLayout(FlowLayout.RIGHT));footer.add(close);dialog.add(footer,BorderLayout.SOUTH);
+            dialog.getRootPane().registerKeyboardAction(e->dialog.dispose(),KeyStroke.getKeyStroke("ESCAPE"),JComponent.WHEN_IN_FOCUSED_WINDOW);
+            HelpGuide.bind(dialog.getRootPane(),()->"Account ledgers");
+            dialog.addWindowListener(new java.awt.event.WindowAdapter(){@Override public void windowClosed(java.awt.event.WindowEvent e){page.stopPending();}});
+            Rectangle screen=getGraphicsConfiguration().getBounds();dialog.setSize(Math.min(1150,screen.width-60),Math.min(750,screen.height-90));dialog.setMinimumSize(new Dimension(Math.min(650,dialog.getWidth()),Math.min(450,dialog.getHeight())));dialog.setLocationRelativeTo(this);dialog.setVisible(true);
+            dashboard.refreshSafely();
+        }catch(SQLException ex){JOptionPane.showMessageDialog(this,ex.getMessage(),"Unable to open account ledger",JOptionPane.ERROR_MESSAGE);}
     }
 
     private void initialize() throws SQLException {
@@ -394,11 +410,14 @@ public final class BusinessLedger extends JFrame {
     private JPanel accountsPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         JTable accountTable = new JTable(accounts); accountTable.setAutoCreateRowSorter(true);
+        accountTable.setToolTipText("Click a recorded balance, or select an account and choose View account ledger.");
+        accountTable.addMouseListener(new java.awt.event.MouseAdapter(){@Override public void mouseClicked(java.awt.event.MouseEvent e){int column=accountTable.columnAtPoint(e.getPoint());if(SwingUtilities.isLeftMouseButton(e)&&e.getClickCount()==1&&accountTable.rowAtPoint(e.getPoint())>=0&&column>=0&&accountTable.convertColumnIndexToModel(column)==4)openAccountLedger(selectedId(accountTable),null,null);}});
         JTable transferTable = new JTable(transfers); transferTable.setAutoCreateRowSorter(true);
         JPanel accountArea = new JPanel(new BorderLayout()), transferArea = new JPanel(new BorderLayout());
         JPanel accountActions = new WrapPanel();
         accountActions.add(button("Add account", () -> editAccount(null)));
         accountActions.add(button("Edit account", () -> editAccount(selectedId(accountTable))));
+        accountActions.add(button("View account ledger", () -> openAccountLedger(selectedId(accountTable),null,null)));
         accountActions.add(button("Delete / archive account", () -> removeAccount(selectedId(accountTable))));
         accountActions.add(button("Restore account", () -> { execute("UPDATE accounts SET active=TRUE WHERE id=?", selectedId(accountTable)); refresh(); }));
         accountArea.add(new JScrollPane(accountTable)); accountArea.add(accountActions, BorderLayout.SOUTH);

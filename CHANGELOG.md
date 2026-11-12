@@ -1,5 +1,13 @@
 # Release history
 
+## 1.5.0 - 2026-11-12
+
+- Added account-specific ledgers from clickable Dashboard account names/balances and Accounts & transfers → View account ledger.
+- Account ledgers show dated transactions, transfers, audit markers, and full-history running balances, with search, date/type/category/amount filters, edit access, and edit history.
+- Period summaries include carried-forward balances and all account movement, independently of income-analysis settings and row search filters.
+- Dashboard entry points retain the selected date range and use stable account IDs even when the balances table is sorted. Archived and empty accounts are supported.
+- Added in-app help for account ledgers.
+
 ## 1.4.3 - 2026-11-11
 
 - Newly created login accounts open Accounts & transfers so first-time users can set up accounts and opening balances.

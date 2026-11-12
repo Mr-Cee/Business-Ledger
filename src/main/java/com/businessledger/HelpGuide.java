@@ -89,6 +89,15 @@ final class HelpGuide extends JPanel {
             <p>The transfer date remembers the last saved transfer separately from the transaction date. Check it before saving. Each transfer appears in transfer history and as two ledger rows. It changes account balances but is excluded from income and expense reports.</p>
             <p><b>Edit selected transfer</b> changes its date, amount, accounts, or notes and requires an edit reason. Both sides update together. <b>View transfer edit history</b> shows the changes. <b>Delete selected transfer</b> removes the transfer and its effect on both accounts after confirmation.</p>
             """),
+        new Topic("Account ledgers", """
+            <h2>Review one account at a time</h2>
+            <p>On <b>Dashboard</b>, click an account name or balance. You can also select its row and click <b>View selected ledger</b> or press Enter. The ledger starts with the Dashboard's dates, so its closing balance matches the balance you clicked.</p>
+            <p>On <b>Accounts &amp; transfers</b>, select an account and click <b>View account ledger</b>, or click its recorded balance. This opens all recorded dates, including future entries. Archived accounts can also be reviewed.</p>
+            <p>The top shows the balance before the period, money in, money out, and the balance at the end. Transfers and every income category are included because this is the account's actual history. A credit account can have a negative balance when money is owed.</p>
+            <p>Use <b>Search ledger</b> (Ctrl+F), Type, and <b>More filters</b> to find records. Date filters change the period balances. Search, type, category, and amount filters only hide rows; they do not change the actual account balance or historical running balances. <b>Clear filters</b> shows this account's full history again.</p>
+            <p><b>Refresh ledger</b> reloads the account's history. Select a row and choose <b>Edit selected</b> to correct a transaction or transfer with the existing required edit reason. Transfer changes update both accounts. <b>View edit history</b> opens that record's audit history. Scroll sideways for notes and other details if the window is narrow.</p>
+            <p>Use <b>Income &amp; expenses</b> to add a new transaction, choosing this account in its Account dropdown. Click <b>Close</b> or press Escape to return to the main window.</p>
+            """),
         new Topic("Business mileage", """
             <h2>Record a business trip</h2>
             <p>Use this screen to keep a log of business driving.</p>

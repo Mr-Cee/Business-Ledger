@@ -1,6 +1,12 @@
 # Business Ledger
 
-**Current version: 1.4.3.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.5.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Account ledgers
+
+Click an account name or balance on the Dashboard to open its ledger for the Dashboard's date range. You can also select a Dashboard account and click **View selected ledger** or press Enter. In **Accounts & transfers**, select an account and choose **View account ledger**, or click its recorded balance, to view all dates. Archived accounts are supported.
+
+The ledger shows opening/carried-forward balance, period money in/out, closing balance, transactions, transfer directions/counterparties, running balances, and Edited markers. Transfers and all income categories count toward actual account balances, regardless of income-analysis settings. Search/type/category/amount filters only narrow rows; dates control the period summary. Clear filters restores all dates for the same account. Select a record to edit it with a reason or view its audit history; transfers use the existing paired-transfer editor. Balances are calculated before row filtering or sorting. In narrower windows the financial columns appear first, with sideways scrolling for details. F1 opens account-ledger help.
 
 After creating a login, the first session opens **Accounts & transfers** to help set up accounts and opening balances. Returning sign-ins open the Dashboard.
 

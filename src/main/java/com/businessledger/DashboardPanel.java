@@ -22,10 +22,18 @@ final class DashboardPanel extends JPanel {
     private final DefaultTableModel accounts=model("Account","Type","Balance ($)"),categories=model("Expense category","Total ($)");
     private final DateRangeControls ranges;
     private final javax.swing.Timer delayed;
+    @FunctionalInterface interface OpenLedger{void open(long id,LocalDate start,LocalDate end);}
+    private final OpenLedger openLedger;
+    private final java.util.List<Long> accountIds=new ArrayList<>();
+    private LocalDate ledgerStart,ledgerEnd;
     record Data(ChartsPanel.Data activity,BigDecimal miles,java.util.List<Object[]> accounts,TaxEstimate.Estimate tax){}
 
     DashboardPanel(Connection db){
+        this(db,(id,start,end)->{});
+    }
+    DashboardPanel(Connection db,OpenLedger openLedger){
         super(new BorderLayout(12,12));this.db=db;
+        this.openLedger=openLedger;
         delayed=new javax.swing.Timer(250,e->refreshSafely());delayed.setRepeats(false);
         ranges=new DateRangeControls(db,from,through,()->delayed.restart(),true);
         JPanel header=new JPanel(new BorderLayout(0,6));
@@ -40,7 +48,15 @@ final class DashboardPanel extends JPanel {
         cards.add(card("Estimated taxes due",estimatedTax,taxCaption));
         JPanel sections=new JPanel();sections.setLayout(new BoxLayout(sections,BoxLayout.Y_AXIS));
         sections.add(section("Monthly income & expenses",new JScrollPane(monthly),340));sections.add(Box.createVerticalStrut(12));
-        JPanel balances=section(null,new JScrollPane(new JTable(accounts)),230);balancesTitle.setFont(balancesTitle.getFont().deriveFont(Font.BOLD,16f));balances.add(balancesTitle,BorderLayout.NORTH);sections.add(balances);sections.add(Box.createVerticalStrut(12));
+        JTable accountTable=new JTable(accounts);accountTable.setAutoCreateRowSorter(true);accountTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        accountTable.setToolTipText("Click an account name or balance to open its ledger. You can also select a row and press Enter.");
+        Runnable openSelected=()->{int row=accountTable.getSelectedRow();if(row>=0){int modelRow=accountTable.convertRowIndexToModel(row);if(modelRow<accountIds.size()&&accountIds.get(modelRow)!=null)this.openLedger.open(accountIds.get(modelRow),ledgerStart,ledgerEnd);}};
+        accountTable.addMouseListener(new java.awt.event.MouseAdapter(){@Override public void mouseClicked(java.awt.event.MouseEvent e){int column=accountTable.columnAtPoint(e.getPoint());int row=accountTable.rowAtPoint(e.getPoint());if(SwingUtilities.isLeftMouseButton(e)&&e.getClickCount()==1&&row>=0&&column>=0&&(accountTable.convertColumnIndexToModel(column)==0||accountTable.convertColumnIndexToModel(column)==2))openSelected.run();}});
+        accountTable.addMouseMotionListener(new java.awt.event.MouseMotionAdapter(){@Override public void mouseMoved(java.awt.event.MouseEvent e){int column=accountTable.columnAtPoint(e.getPoint());boolean link=accountTable.rowAtPoint(e.getPoint())>=0&&column>=0&&(accountTable.convertColumnIndexToModel(column)==0||accountTable.convertColumnIndexToModel(column)==2);accountTable.setCursor(Cursor.getPredefinedCursor(link?Cursor.HAND_CURSOR:Cursor.DEFAULT_CURSOR));}});
+        accountTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"),"open-account-ledger");accountTable.getActionMap().put("open-account-ledger",new AbstractAction(){public void actionPerformed(java.awt.event.ActionEvent e){openSelected.run();}});
+        JPanel balances=section(null,new JScrollPane(accountTable),250);balancesTitle.setFont(balancesTitle.getFont().deriveFont(Font.BOLD,16f));balances.add(balancesTitle,BorderLayout.NORTH);
+        JButton viewLedger=new JButton("View selected ledger");viewLedger.setEnabled(false);viewLedger.addActionListener(e->openSelected.run());accountTable.getSelectionModel().addListSelectionListener(e->{int row=accountTable.getSelectedRow();int modelRow=row<0?-1:accountTable.convertRowIndexToModel(row);viewLedger.setEnabled(modelRow>=0&&modelRow<accountIds.size()&&accountIds.get(modelRow)!=null);});
+        WrapPanel accountActions=new WrapPanel();accountActions.add(viewLedger);balances.add(accountActions,BorderLayout.SOUTH);sections.add(balances);sections.add(Box.createVerticalStrut(12));
         sections.add(section("Top 5 expense categories",new JScrollPane(new JTable(categories)),230));
         Body body=new Body();body.add(cards,BorderLayout.NORTH);body.add(sections);
         JScrollPane scroll=new JScrollPane(body);scroll.setBorder(BorderFactory.createEmptyBorder());scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);scroll.getVerticalScrollBar().setUnitIncrement(24);add(scroll);
@@ -78,18 +94,18 @@ final class DashboardPanel extends JPanel {
                 UNION ALL SELECT from_account_id,transfer_date,-amount FROM transfers
                 UNION ALL SELECT to_account_id,transfer_date,amount FROM transfers
             ), flows AS (SELECT account_id,SUM(amount) AS amount FROM events WHERE day<=? GROUP BY account_id)
-            SELECT a.name,a.account_type,a.opening_balance+COALESCE(f.amount,0),a.active
+            SELECT a.name,a.account_type,a.opening_balance+COALESCE(f.amount,0),a.active,a.id
             FROM accounts a LEFT JOIN flows f ON f.account_id=a.id ORDER BY a.active DESC,a.name
             """)){
             s.setObject(1,end);try(ResultSet r=s.executeQuery()){while(r.next()){
-                BigDecimal balance=r.getBigDecimal(3);if(r.getBoolean(4)||balance.signum()!=0)accounts.add(new Object[]{r.getString(1)+(r.getBoolean(4)?"":" (archived)"),r.getString(2),balance});
+                BigDecimal balance=r.getBigDecimal(3);if(r.getBoolean(4)||balance.signum()!=0)accounts.add(new Object[]{r.getString(1)+(r.getBoolean(4)?"":" (archived)"),r.getString(2),balance,r.getLong(5)});
             }}
         }
         return new Data(activity,miles,accounts,TaxEstimate.load(db,LocalDate.now()));
     }
     void refreshSafely(){
         delayed.stop();
-        try{ranges.applyToDates();LocalDate start=LocalDate.parse(from.getText().trim()),end=LocalDate.parse(through.getText().trim());render(load(db,start,end),end);
+        try{ranges.applyToDates();LocalDate start=LocalDate.parse(from.getText().trim()),end=LocalDate.parse(through.getText().trim());render(load(db,start,end),end);ledgerStart=start;ledgerEnd=end;
             status.setText("Updated: "+start+" through "+end+". "+IncomeScope.load(db).description()+". Balances include prior activity, opening balances and transfers.");
         }catch(Exception ex){clear();status.setText("Unable to load dashboard: "+ex.getMessage());}
     }
@@ -100,11 +116,11 @@ final class DashboardPanel extends JPanel {
         estimatedTax.setToolTipText(tax.year()+" income: "+MONEY.format(tax.income())+" x "+tax.rate().stripTrailingZeros().toPlainString()+"%. Uses the income category setting; excludes expenses and tax payments. Independent of dashboard dates.");
         income.setText(MONEY.format(data.activity().income()));expenses.setText(MONEY.format(data.activity().expenses()));
         net.setText(MONEY.format(data.activity().income().subtract(data.activity().expenses())));miles.setText(NumberFormat.getNumberInstance(Locale.US).format(data.miles())+" mi");
-        monthly.setMonths(data.activity().months());accounts.setRowCount(0);for(Object[] row:data.accounts())accounts.addRow(row);
+        ledgerEnd=end;monthly.setMonths(data.activity().months());accounts.setRowCount(0);accountIds.clear();for(Object[] row:data.accounts()){accountIds.add(row.length>3&&row[3] instanceof Number id?id.longValue():null);accounts.addRow(row);}
         categories.setRowCount(0);data.activity().categories().entrySet().stream().sorted(Map.Entry.<String,BigDecimal>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey())).limit(5).forEach(e->categories.addRow(new Object[]{e.getKey(),e.getValue()}));
         balancesTitle.setText("Account balances as of "+end+" · signed balances");
     }
-    private void clear(){for(JLabel label:new JLabel[]{income,expenses,net,miles,estimatedTax})label.setText("-");estimatedTax.setToolTipText(null);monthly.setMonths(Map.of());accounts.setRowCount(0);categories.setRowCount(0);}
+    private void clear(){for(JLabel label:new JLabel[]{income,expenses,net,miles,estimatedTax})label.setText("-");estimatedTax.setToolTipText(null);monthly.setMonths(Map.of());accounts.setRowCount(0);accountIds.clear();ledgerStart=null;ledgerEnd=null;categories.setRowCount(0);}
     private static final class Body extends JPanel implements Scrollable{
         Body(){super(new BorderLayout(0,12));}
         public Dimension getPreferredScrollableViewportSize(){return new Dimension(800,600);}
