@@ -16,6 +16,7 @@ final class LoginWindow extends JDialog {
 
     private LoginWindow(LoginStore store) throws Exception {
         super((Frame) null, "Business Ledger — Log in", true); this.store = store;
+        AppIcon.apply(this);
         JPanel panel = new JPanel(new BorderLayout(12, 12)); panel.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
         names.setEditable(true);
         for (String name : store.names()) names.addItem(name);

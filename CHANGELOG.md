@@ -1,5 +1,11 @@
 # Release history
 
+## 1.4.1 - 2026-11-11
+
+- Added a custom navy and teal bookkeeping ledger icon with a gold bookmark and checkmark.
+- Application and login windows use icons at seven resolutions; Windows application, setup, launcher, uninstall, and shortcut icons use the matching multi-resolution ICO.
+- Build and publishing scripts include the icon assets, with binary-safe Maven resources.
+
 ## 1.4.0 - 2026-11-11
 
 - Download updates inside Ledger with progress and cancellation, without opening a browser.

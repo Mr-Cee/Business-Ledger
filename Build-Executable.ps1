@@ -3,6 +3,8 @@ $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Release.Common.ps1')
 $version = Get-LedgerVersion
+$icon = Join-Path $PSScriptRoot 'src/main/resources/icons/business-ledger.ico'
+if (!(Test-Path -LiteralPath $icon)) { throw 'The application icon is missing.' }
 $tag = "$version-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
 if (!$Destination) { $Destination = Join-Path $PSScriptRoot "releases\$tag\$Layout" }
 $build = Join-Path $PSScriptRoot "target\releases\$tag"
@@ -34,12 +36,12 @@ if ($UseExistingRuntime) {
     $metadata = Join-Path $build 'LauncherVersion.cs'
     [IO.File]::WriteAllText($metadata,"using System.Reflection;[assembly:AssemblyTitle(`"Business Ledger`")][assembly:AssemblyFileVersion(`"$version.0`")][assembly:AssemblyVersion(`"$version.0`")]",[Text.UTF8Encoding]::new($false))
     $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-    & $compiler /nologo /target:winexe /platform:x64 /r:System.Windows.Forms.dll "/win32manifest:$PSScriptRoot\installer\app.manifest" "/out:$image\BusinessLedger.exe" $metadata (Join-Path $PSScriptRoot 'installer\AppLauncher.cs')
+    & $compiler /nologo /target:winexe /platform:x64 /r:System.Windows.Forms.dll "/win32icon:$icon" "/win32manifest:$PSScriptRoot\installer\app.manifest" "/out:$image\BusinessLedger.exe" $metadata (Join-Path $PSScriptRoot 'installer\AppLauncher.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Versioned application launcher build failed.' }
 } else {
     $nativeDestination = Join-Path ([IO.Path]::GetTempPath()) "BusinessLedger-package-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Path $nativeDestination | Out-Null
-    & jpackage "-J-Djava.io.tmpdir=$build" --type app-image --name BusinessLedger --app-version $version --vendor 'Business Ledger' --input $inputDir --main-jar $jarName --main-class com.businessledger.BusinessLedger --dest $nativeDestination --add-modules java.desktop,java.sql,java.naming,java.security.jgss,java.management
+    & jpackage "-J-Djava.io.tmpdir=$build" --type app-image --name BusinessLedger --app-version $version --vendor 'Business Ledger' --input $inputDir --main-jar $jarName --main-class com.businessledger.BusinessLedger --icon $icon --dest $nativeDestination --add-modules java.desktop,java.sql,java.naming,java.security.jgss,java.management
     if ($LASTEXITCODE -ne 0) { throw 'Application image build failed.' }
     Copy-Item -LiteralPath (Join-Path $nativeDestination 'BusinessLedger') -Destination $Destination -Recurse
 }

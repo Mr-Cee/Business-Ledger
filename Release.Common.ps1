@@ -10,6 +10,7 @@ function Compile-Ledger([string]$Classes) {
     New-Item -ItemType Directory -Force -Path $Classes | Out-Null
     & javac --release 21 -encoding UTF-8 -d $Classes (Get-ChildItem (Join-Path $PSScriptRoot 'src/main/java/com/businessledger/*.java') | ForEach-Object FullName)
     if ($LASTEXITCODE -ne 0) { throw 'Compiling Business Ledger failed.' }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/main/resources/icons') -Destination $Classes -Recurse -Force
     $version = Get-LedgerVersion
     $built = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     [IO.File]::WriteAllText((Join-Path $Classes 'release.properties'), "version=$version`nbuilt=$built`n", [Text.UTF8Encoding]::new($false))

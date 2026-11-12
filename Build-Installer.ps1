@@ -37,14 +37,15 @@ if (!(Test-Path -LiteralPath $compiler)) { throw 'The Windows .NET Framework C# 
 $references = @('/r:System.Windows.Forms.dll','/r:System.Drawing.dll',"/r:$framework\System.IO.Compression.dll","/r:$framework\System.IO.Compression.FileSystem.dll")
 $deployment = Join-Path $PSScriptRoot 'installer\Deployment.cs'
 $manifest = Join-Path $PSScriptRoot 'installer\app.manifest'
+$icon = Join-Path $PSScriptRoot 'src/main/resources/icons/business-ledger.ico'
 $launcher = Join-Path $build 'BusinessLedgerLauncher.exe'
 $uninstaller = Join-Path $build 'Uninstall.exe'
-& $compiler /nologo /target:winexe /platform:x64 /define:LAUNCHER "/win32manifest:$manifest" "/out:$launcher" @references $metadata $deployment
+& $compiler /nologo /target:winexe /platform:x64 /define:LAUNCHER "/win32icon:$icon" "/win32manifest:$manifest" "/out:$launcher" @references $metadata $deployment
 if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed.' }
-& $compiler /nologo /target:winexe /platform:x64 /define:UNINSTALL "/win32manifest:$manifest" "/out:$uninstaller" @references $metadata $deployment
+& $compiler /nologo /target:winexe /platform:x64 /define:UNINSTALL "/win32icon:$icon" "/win32manifest:$manifest" "/out:$uninstaller" @references $metadata $deployment
 if ($LASTEXITCODE -ne 0) { throw 'Uninstaller compilation failed.' }
 $installer = Join-Path $Destination "BusinessLedger-Setup-$version.exe"
-& $compiler /nologo /target:winexe /platform:x64 /define:SETUP "/win32manifest:$manifest" "/out:$installer" "/resource:$payload,payload.zip" "/resource:$launcher,launcher.exe" "/resource:$uninstaller,uninstaller.exe" @references $metadata $deployment
+& $compiler /nologo /target:winexe /platform:x64 /define:SETUP "/win32icon:$icon" "/win32manifest:$manifest" "/out:$installer" "/resource:$payload,payload.zip" "/resource:$launcher,launcher.exe" "/resource:$uninstaller,uninstaller.exe" @references $metadata $deployment
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
 $checksum = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText((Join-Path $Destination "BusinessLedger-Setup-$version.sha256"),"$checksum  BusinessLedger-Setup-$version.exe`n",[Text.UTF8Encoding]::new($false))

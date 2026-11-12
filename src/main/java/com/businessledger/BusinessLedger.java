@@ -46,6 +46,7 @@ public final class BusinessLedger extends JFrame {
 
     private BusinessLedger(Connection connection) throws SQLException {
         super("Business Ledger"); db = connection;
+        AppIcon.apply(this);
         initialize();
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         JMenuBar menuBar = new JMenuBar();

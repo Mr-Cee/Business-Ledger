@@ -258,6 +258,7 @@ namespace BusinessLedgerDeployment {
         internal Exception Failure;
         bool installing=true;
         internal UpdateForm(string home) {
+            Icon=System.Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
             Text="Updating Business Ledger";Width=480;Height=150;StartPosition=FormStartPosition.CenterScreen;ControlBox=false;FormBorderStyle=FormBorderStyle.FixedDialog;
             Controls.Add(new Label(){Text="Installing Business Ledger "+ReleaseInfo.Version+". The app will reopen when finished.",Dock=DockStyle.Top,Height=50,Padding=new Padding(12)});
             Controls.Add(new ProgressBar(){Dock=DockStyle.Bottom,Height=24,Style=ProgressBarStyle.Marquee});
@@ -275,6 +276,7 @@ namespace BusinessLedgerDeployment {
     internal sealed class SetupForm : Form {
         readonly TextBox data=new TextBox();readonly CheckBox launch=new CheckBox();readonly Button install=new Button();readonly Label status=new Label();
         internal SetupForm() {
+            Icon=System.Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
             Text="Business Ledger "+ReleaseInfo.Version+" Setup";Width=660;Height=440;StartPosition=FormStartPosition.CenterScreen;Font=new System.Drawing.Font("Segoe UI",10);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
             Label title=new Label(){Text="Install or update Business Ledger "+ReleaseInfo.Version,Left=20,Top=20,Width=580,Height=30,Font=new System.Drawing.Font("Segoe UI",15,System.Drawing.FontStyle.Bold)};Controls.Add(title);
             Controls.Add(new Label(){Text="All-in-one setup: Java and PostgreSQL are included. No extra downloads.\nLedger data is kept outside the app and preserved during updates.",Left=20,Top=62,Width=600,Height=52});
