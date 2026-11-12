@@ -1,5 +1,11 @@
 # Release history
 
+## 1.3.2 - 2026-11-11
+
+- Dashboard shows a red exclamation indicator, available version, and View update button when a newer stable release is found.
+- The reminder remains after choosing Later or opening a download and reopens the update prompt without another network check.
+- Successful checks with no newer release hide the reminder; failed checks preserve an already detected update for the current session.
+
 ## 1.3.1 - 2026-11-11
 
 - Business mileage now requires only a valid date and positive miles. From, To, and Business purpose are optional and can all be left blank.

@@ -52,6 +52,7 @@ final class HelpGuide extends JPanel {
             <li><b>Account balances:</b> balances as of the selected end date, including opening balances, all income and expenses, and transfers.</li>
             <li><b>Estimated taxes due:</b> current calendar-year income multiplied by your saved tax percentage (24% by default). This card ignores the Dashboard date range but follows your income category preference.</li></ul>
             <p>The tax card is a simple planning estimate. It does not subtract expenses, withholding, or tax payments. Change its percentage in <b>Settings → Open settings → Estimated taxes</b>.</p>
+            <p>When a newer app version is found, a <b>red exclamation mark</b> and <b>Update available</b> message appear above the date controls. Click <b>View update</b> to reopen the download prompt. Choosing Later keeps this reminder visible for the rest of the session.</p>
             <p>Hover over chart marks to see exact amounts. Read the Date ranges topic if you want a particular month or quarter.</p>
             """),
         new Topic("Income & expenses", """

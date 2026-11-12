@@ -1,10 +1,12 @@
 # Business Ledger
 
-**Current version: 1.3.1.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. Close Ledger before installing and keep your existing ledger data folder selected to preserve accounts and records. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.3.2.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. Close Ledger before installing and keep your existing ledger data folder selected to preserve accounts and records. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
 
 Business mileage requires a valid date and positive miles. From, To, and Business purpose are optional.
 
 ## Updates
+
+When an update is found, the Dashboard shows a red exclamation mark, its version, and a **View update** button. The reminder stays visible after choosing Later and lets you reopen the download prompt without waiting for another check. It reflects updates detected in the current app session; a successful check with no newer version hides it.
 
 Version 1.3.0 and later check the public GitHub release feed in the background after login. A newer complete stable release prompts you to download its installer or view release notes. **Help > Check for updates** checks on demand. Download the installer, close Ledger, then run it with your existing data folder selected. No installer runs automatically. An unavailable network does not block normal use, and the check sends no financial data or login credentials. Users on older versions need to install 1.3.0 once to receive future prompts.
 

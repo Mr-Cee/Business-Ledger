@@ -16,7 +16,18 @@ final class UpdateChecker {
     static final URI LATEST = URI.create("https://api.github.com/repos/" + REPOSITORY + "/releases/latest");
     private static final AtomicBoolean BUSY = new AtomicBoolean();
     private static final AtomicBoolean STARTED = new AtomicBoolean();
+    private static final java.beans.PropertyChangeSupport CHANGES = new java.beans.PropertyChangeSupport(UpdateChecker.class);
+    private static Release available;
     record Release(String version, URI installer, URI page) {}
+
+    static Release available() { return available; }
+    static void addAvailabilityListener(java.beans.PropertyChangeListener listener) { CHANGES.addPropertyChangeListener(listener); }
+    static void removeAvailabilityListener(java.beans.PropertyChangeListener listener) { CHANGES.removePropertyChangeListener(listener); }
+    static void remember(Release release) throws IOException {
+        Release previous = available;
+        available = release != null && compare(release.version(), AppVersion.version()) > 0 ? release : null;
+        CHANGES.firePropertyChange("available", previous, available);
+    }
 
     static void onStartup(Window owner) {
         if (STARTED.compareAndSet(false, true)) check(owner, false);
@@ -36,18 +47,13 @@ final class UpdateChecker {
                 if (!owner.isShowing()) return;
                 try {
                     Release release = get();
-                    if (release == null || compare(release.version(), AppVersion.version()) <= 0) {
+                    remember(release);
+                    if (available == null) {
                         if (manual) JOptionPane.showMessageDialog(owner, "You are using Business Ledger " + AppVersion.version()
                             + ".\nNo newer complete release is available.", "Check for updates", JOptionPane.INFORMATION_MESSAGE);
                         return;
                     }
-                    Object[] choices = {"Download installer", "View release notes", "Later"};
-                    int choice = JOptionPane.showOptionDialog(owner, "Business Ledger " + release.version() + " is available.\n"
-                        + "You are using " + AppVersion.version() + ".\n\nDownload the installer, close Business Ledger, then run the installer.\n"
-                        + "Keep your existing ledger data folder selected to retain your records.",
-                        "Update available", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, choices, choices[0]);
-                    if (choice == 0) browse(owner, release.installer());
-                    else if (choice == 1) browse(owner, release.page());
+                    showAvailable(owner);
                 } catch (Exception ex) {
                     if (manual) JOptionPane.showMessageDialog(owner,
                         "Unable to check for updates right now.\nCheck your internet connection and try again later.\n"
@@ -56,6 +62,18 @@ final class UpdateChecker {
                 }
             }
         }.execute();
+    }
+
+    static void showAvailable(Window owner) {
+        Release release = available;
+        if (release == null) { check(owner, true); return; }
+        Object[] choices = {"Download installer", "View release notes", "Later"};
+        int choice = JOptionPane.showOptionDialog(owner, "Business Ledger " + release.version() + " is available.\n"
+            + "You are using " + AppVersion.version() + ".\n\nDownload the installer, close Business Ledger, then run the installer.\n"
+            + "Keep your existing ledger data folder selected to retain your records.",
+            "Update available", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, choices, choices[0]);
+        if (choice == 0) browse(owner, release.installer());
+        else if (choice == 1) browse(owner, release.page());
     }
 
     private static void browse(Window owner, URI uri) {

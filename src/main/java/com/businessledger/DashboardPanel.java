@@ -30,7 +30,8 @@ final class DashboardPanel extends JPanel {
         ranges=new DateRangeControls(db,from,through,()->delayed.restart(),true);
         JPanel header=new JPanel(new BorderLayout(0,6));
         JLabel title=new JLabel("Your business at a glance");title.setFont(title.getFont().deriveFont(Font.BOLD,22f));
-        header.add(title,BorderLayout.NORTH);
+        JPanel heading=new JPanel(new BorderLayout(0,6));heading.add(title,BorderLayout.NORTH);heading.add(new UpdateNotice());
+        header.add(heading,BorderLayout.NORTH);
         JPanel filters=new JPanel(new BorderLayout());filters.add(ranges,BorderLayout.NORTH);
         WrapPanel dates=new WrapPanel();dates.addField("From",new BusinessLedger.DateChooser(from));dates.addField("Through (inclusive)",new BusinessLedger.DateChooser(through));
         JButton refresh=new JButton("Refresh dashboard");refresh.addActionListener(e->refreshSafely());dates.add(refresh);filters.add(dates);header.add(filters);add(header,BorderLayout.NORTH);
