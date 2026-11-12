@@ -46,6 +46,10 @@ public final class BusinessLedger extends JFrame {
     private String reportSummary = "";
 
     private BusinessLedger(Connection connection) throws SQLException {
+        this(connection, false);
+    }
+
+    private BusinessLedger(Connection connection, boolean firstLogin) throws SQLException {
         super("Business Ledger"); db = connection;
         AppIcon.apply(this);
         initialize();
@@ -65,11 +69,13 @@ public final class BusinessLedger extends JFrame {
         });
         tabs.addTab("Dashboard", dashboard);
         tabs.addTab("Income & expenses", transactionPanel());
-        tabs.addTab("Accounts & transfers", accountsPanel());
+        JPanel accountsPage = accountsPanel();
+        tabs.addTab("Accounts & transfers", accountsPage);
         tabs.addTab("Business mileage", mileagePanel());
         tabs.addTab("Reports", reportPanel());
         ChartsPanel charts = new ChartsPanel(db);
         tabs.addTab("Charts", charts);
+        if (firstLogin) tabs.setSelectedComponent(accountsPage);
         JMenu settingsMenu = new JMenu("Settings");
         JMenuItem openSettings = new JMenuItem("Open settings...");
         openSettings.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_COMMA,java.awt.event.InputEvent.CTRL_DOWN_MASK));
@@ -1133,7 +1139,7 @@ public final class BusinessLedger extends JFrame {
                 if (session == null) return;
                 Connection db = session.connection();
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> { try { db.close(); } catch (SQLException ignored) {} }));
-                BusinessLedger ledger = new BusinessLedger(db);
+                BusinessLedger ledger = new BusinessLedger(db, session.firstLogin());
                 ledger.loginName = session.name();
                 ledger.setTitle("Business Ledger " + AppVersion.version() + " - " + session.name()); ledger.setVisible(true);
             } catch (Exception | LinkageError ex) {

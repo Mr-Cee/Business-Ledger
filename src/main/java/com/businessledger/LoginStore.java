@@ -9,7 +9,9 @@ import java.util.*;
 /** Login identities live outside profile ledgers; each identity maps to one database. */
 final class LoginStore implements AutoCloseable {
     static final int ITERATIONS = 600_000;
-    record Session(Connection connection, String name) {}
+    record Session(Connection connection, String name, boolean firstLogin) {
+        Session(Connection connection, String name) { this(connection, name, false); }
+    }
     private final LocalDatabase.Server server;
     private final Connection catalog;
     LoginStore(LocalDatabase.Server server) throws SQLException {
@@ -85,7 +87,7 @@ final class LoginStore implements AutoCloseable {
             throw ex;
         } finally { catalog.setAutoCommit(true); Arrays.fill(hashed, (byte) 0); }
         Connection ledger = server.connect(database);
-        try { remember(display); return new Session(ledger, display); }
+        try { remember(display); return new Session(ledger, display, true); }
         catch (SQLException ex) { ledger.close(); throw ex; }
     }
     @Override public void close() throws SQLException { catalog.close(); }

@@ -1,5 +1,10 @@
 # Release history
 
+## 1.4.3 - 2026-11-11
+
+- Newly created login accounts open Accounts & transfers so first-time users can set up accounts and opening balances.
+- Returning sign-ins continue to open the Dashboard; in-app getting-started help explains the first-sign-in behavior.
+
 ## 1.4.2 - 2026-11-11
 
 - Fixed the Java taskbar icon by assigning the Java host and Swing windows a stable Windows application identity with Ledger's icon and relaunch command.

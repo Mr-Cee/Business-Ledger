@@ -19,7 +19,7 @@ final class HelpGuide extends JPanel {
             <p>Business Ledger keeps a record of money you receive, money you spend, money you move between accounts, and business driving.</p>
             <ol><li>At the login window, click <b>Create account</b>. Choose an account name and a password of 12–256 characters, enter the password again, and confirm. Keep your password somewhere safe.</li>
             <li>Log in. A login is your separate ledger. A bank account such as Checking is added inside that ledger.</li>
-            <li>Open <b>Accounts &amp; transfers</b>. Set up your bank, cash, and credit accounts. Check any existing starter accounts before adding more. Select a row and use <b>Edit account</b> to set its name and opening balance.</li>
+            <li>Your first sign-in after creating a login opens <b>Accounts &amp; transfers</b> automatically. Set up your bank, cash, and credit accounts. Check any existing starter accounts before adding more. Select a row and use <b>Edit account</b> to set its name and opening balance. Later sign-ins open the Dashboard.</li>
             <li>Open <b>Income &amp; expenses</b>. Enter a date, choose Income or Expense, choose a category and account, and enter the amount. Click <b>Add transaction</b>.</li>
             <li>Open <b>Dashboard</b> to see your totals. Choose the date range you want to review.</li>
             <li>Open <b>Settings → Open settings</b> and make a backup under <b>Backup &amp; restore</b>.</li></ol>
