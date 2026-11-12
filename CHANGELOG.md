@@ -1,5 +1,12 @@
 # Release history
 
+## 1.6.0 - 2026-11-12
+
+- Added exact-match payee/category/account suggestions to the new transaction form, separated by Income and Expense. Matching ignores capitalization and repeated whitespace.
+- Suggestions come from saved rules or the latest dated eligible transaction. Apply suggestion explicitly changes only the category/account; entering a payee never overwrites form choices.
+- Save payee rule remembers the current selection; Manage payee rules lists and removes preferences. Existing transactions remain unchanged. Archived choices disable saved suggestions, and category renames preserve rules.
+- Saved rules are isolated per ledger profile and included in version-2 backups. Version-1 backups remain restorable, with no saved rules; earlier application versions cannot read the new backup format.
+
 ## 1.5.0 - 2026-11-12
 
 - Added account-specific ledgers from clickable Dashboard account names/balances and Accounts & transfers → View account ledger.

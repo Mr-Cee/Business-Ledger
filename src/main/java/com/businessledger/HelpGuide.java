@@ -14,6 +14,14 @@ final class HelpGuide extends JPanel {
     }
 
     static final List<Topic> TOPICS = List.of(
+        new Topic("Payee rules", """
+            <h2>Suggestions for familiar payees and customers</h2>
+            <p>In <b>Income &amp; expenses</b>, enter a full payee/customer name. Matching ignores capitalization and extra spaces. Income and Expense have separate suggestions. A partial name does not match.</p>
+            <p><b>Apply suggestion</b> copies the suggested category and account into the form. Review them before clicking Add transaction. Typing a name never changes your selections automatically. Suggestions do not change the date, amount, notes, or existing transactions, and do not run during imports or edits.</p>
+            <p><b>Save payee rule</b> remembers the current category and account for this payee and type. Confirming replaces any existing rule for that name/type; it does not add a transaction. To change a rule, enter its payee/type, choose new values, and save again.</p>
+            <p><b>Manage payee rules</b> lists saved rules and removes the selected rule. Removing a rule allows history-based suggestions again. Without a saved rule, the latest dated transaction with an active category and account supplies the suggestion (highest ID wins same-day ties).</p>
+            <p>Saved rules with an archived account/category stay visible but cannot be applied until you restore the choice or replace the rule. Category renames preserve rules. Rules belong to this login's ledger and are included in backups. New backups require version 1.6.0 or newer; older version-1 backups can still be restored and contain no saved rules.</p>
+            """),
         new Topic("Getting started", """
             <h2>Your first ledger, step by step</h2>
             <p>Business Ledger keeps a record of money you receive, money you spend, money you move between accounts, and business driving.</p>
