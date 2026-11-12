@@ -1,5 +1,9 @@
 # Release history
 
+## 1.6.1 - 2026-11-12
+
+- Added extra width to form-field labels so Windows/Nimbus rendering does not clip Amount, Payee / customer, Notes, Search ledger, and other captions. Labels and their inputs continue to wrap together.
+
 ## 1.6.0 - 2026-11-12
 
 - Added exact-match payee/category/account suggestions to the new transaction form, separated by Income and Expense. Matching ignores capitalization and repeated whitespace.

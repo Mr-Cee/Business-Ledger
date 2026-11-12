@@ -16,7 +16,18 @@ final class WrapPanel extends JPanel {
     }
     void addField(String label,JComponent input) {
         JPanel pair=new JPanel(new BorderLayout(5,0)); pair.setOpaque(false);
-        pair.add(new JLabel(label),BorderLayout.WEST);pair.add(input);add(pair);
+        JLabel caption=new JLabel(label) {
+            @Override public Dimension getPreferredSize() {
+                Dimension size=super.getPreferredSize();
+                // Nimbus can paint text slightly wider than its preferred measurement,
+                // especially with Windows display scaling. Keep slack inside the label
+                // rather than a border, which would remove that space when painting.
+                size.width+=8;
+                return size;
+            }
+        };
+        caption.setLabelFor(input);
+        pair.add(caption,BorderLayout.WEST);pair.add(input);add(pair);
     }
     @Override public Dimension getPreferredSize() {
         synchronized(getTreeLock()) {
