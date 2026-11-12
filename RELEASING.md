@@ -65,3 +65,9 @@ The idempotent startup migration creates `payee_rules` after accounts/categories
 No schema changes. Shared normalized keys compare date/type/amount/account/payee and intentionally ignore category and notes. Matching is scoped to the connected profile database and excludes transfers. Manual saves show matching IDs before entering a transaction, then lock and recheck before inserting. Imports retain the existing SHARE ROW EXCLUSIVE lock, recheck against saved and within-file keys, and only honor Keep overrides for flagged preview-row indices. No lock is held during user review.
 
 DuplicateDetectionCheck verifies normalized keys and all-row review without a database. With a fresh disposable 55439 database it additionally verifies manual match lookup, different category/notes, CSV per-row Keep, matches added after preview, deliberate repeats and atomic rollback. CsvImportCheck covers the existing parser/import behavior.
+
+## Bulk editing (1.8.0)
+
+No schema changes. BulkTransactionEdit locks selected transaction IDs in ascending order, compares full JSON snapshots with the reviewed records, validates and holds shared locks on active target choices, then writes changes and per-record audit history in one transaction. No database locks are held during user review. Unchanged rows produce no writes. Bulk editing is limited to category/account changes from Income & expenses; transfer rows are rejected before resolving transaction IDs.
+
+BulkTransactionEditCheck covers sorted/filtered/disjoint selection, transfer ID collisions and single-action guards. With a fresh disposable database on port 55439, it verifies before/after previews, per-row audit history, no-op handling, archived originals, active targets, stale/deleted rows and full rollback after a later audit failure.

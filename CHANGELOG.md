@@ -1,5 +1,12 @@
 # Release history
 
+## 1.8.0 - 2026-11-12
+
+- Added Bulk edit selected on Income & expenses: Ctrl-click or Shift-click multiple transactions, choose category/account changes and a required reason, then review every selected row before saving.
+- Bulk changes are atomic and add an individual before/after edit-history entry for each changed transaction. Already-correct rows remain unchanged without extra history.
+- Active target choices are revalidated, and stale or deleted selected transactions abort the batch. Transfers are excluded. Single-record edit/history/delete actions now require exactly one selected row.
+- Successful changes refresh ledger balances, payee suggestions and the Dashboard; canceling keeps the selection and writes nothing.
+
 ## 1.7.0 - 2026-11-12
 
 - Added manual-entry duplicate review with existing transaction details and Cancel / Add anyway choices, defaulting to Cancel.

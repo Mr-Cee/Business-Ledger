@@ -266,6 +266,8 @@ public final class BusinessLedger extends JFrame {
         save.setToolTipText("Add transaction (Enter from a transaction text field)");
         JButton category = button("Manage categories", this::manageCategories);
         LedgerTable table = new LedgerTable(transactions); table.setAutoCreateRowSorter(true);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        table.setToolTipText("Ctrl-click or Shift-click to select transactions, then choose Bulk edit selected. Single-record actions require one row.");
         JCheckBox colorRows = new JCheckBox("Color rows (red = money out, green = money in)");
         try (Statement s = db.createStatement(); ResultSet r = s.executeQuery("SELECT value FROM ledger_settings WHERE name='color_ledger_rows'")) {
             if (r.next()) colorRows.setSelected(Boolean.parseBoolean(r.getString(1)));
@@ -292,6 +294,11 @@ public final class BusinessLedger extends JFrame {
         JPanel actions = new WrapPanel(); actions.add(save); actions.add(category);
         actions.add(button("Import CSV", () -> { if(CsvImportWizard.showImport(this,db)) refresh(); }));
         actions.add(button("Edit selected", () -> editTransaction(selectedTransactionId(table))));
+        actions.add(button("Bulk edit selected", () -> {
+            java.util.List<Long> ids=BulkTransactionEdit.selectedIds(table);
+            try{if(BulkEditDialog.show(this,db,ids,loginName)){refresh();dashboard.refreshSafely();}}
+            catch(SQLException ex){refresh();throw ex;}
+        }));
         actions.add(button("View edit history", () -> viewEditHistory(selectedTransactionId(table))));
         actions.add(button("Delete selected", () -> { selectedTransactionId(table); delete(table, "transactions"); }));
         actions.add(button("Assign / change account", () -> editTransaction(selectedTransactionId(table))));
@@ -454,6 +461,7 @@ public final class BusinessLedger extends JFrame {
     }
 
     private static long selectedId(JTable table) {
+        if(table.getSelectedRowCount()>1)throw new IllegalArgumentException("Select one record for this action. Use Bulk edit selected to change several transactions.");
         int row = table.getSelectedRow();
         if (row < 0) throw new IllegalArgumentException("Select a record first.");
         return ((Number) table.getModel().getValueAt(table.convertRowIndexToModel(row), 0)).longValue();

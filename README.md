@@ -1,6 +1,14 @@
 # Business Ledger
 
-**Current version: 1.7.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.8.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Bulk editing
+
+In Income & expenses, use Ctrl-click for individual rows or Shift-click for a range, then choose Bulk edit selected. Filtering and sorting are supported: only the selected visible transactions are included. Select Income/Expense rows only; transfers must be managed in Accounts & transfers.
+
+Check Change category, Change account, or both; choose active targets and enter a reason. Unchecked fields keep each transaction's original value, including archived or unassigned accounts. Review the before/after table and choose Save changes. Date, type, amount, payee and notes are preserved. Rows that already have the chosen values are listed as Unchanged and receive no extra edit history.
+
+The full batch saves together with an individual audit entry per changed record. If any selected transaction changed or disappeared since loading, a target was archived, or any update/history write fails, no bulk changes are saved. Reopen the editor and review again. Canceling keeps your selection. Single-record edit, history and delete actions require exactly one selected row.
 
 ## Duplicate detection
 
