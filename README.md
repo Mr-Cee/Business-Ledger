@@ -1,6 +1,14 @@
 # Business Ledger
 
-**Current version: 1.5.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.6.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Payee rules and suggestions
+
+In **Income & expenses**, enter a familiar payee/customer and choose Income or Expense. A suggestion appears for the full name (case and extra spaces are ignored). **Apply suggestion** sets the category and account; review them before adding the transaction. Date, amount, notes, and type stay as entered. Suggestions do not apply to imports, transfers, or edits of existing records.
+
+Choose a category/account and click **Save payee rule** to remember that preference. Saving the same payee and type replaces its rule. **Manage payee rules** lists saved rules and lets you remove one; to change a rule, save a replacement from the transaction form. Rules belong to the current login's ledger. Without a saved rule, suggestions use the latest dated transaction with an active category and account, breaking same-date ties by transaction ID. Partial names never match.
+
+Archived categories/accounts make their saved rules unavailable until restored or replaced. Renaming a category preserves saved rules. Removing a rule allows transaction-history suggestions again. Rules are included in new version-2 backups; old version-1 backups restore with no saved rules. Version-2 backups require Business Ledger 1.6.0 or newer.
 
 ## Account ledgers
 

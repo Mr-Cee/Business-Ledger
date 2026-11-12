@@ -53,3 +53,9 @@ Before distributing a release, run the Java release/data-location checks and rel
 The build audits native imports against packaged C++ runtime files, validates vendor runtime exports, and runs the bundled PostgreSQL version command. The credential helper uses Windows DPAPI with CurrentUser scope, compatible with existing saved credentials; no credential is passed on a command line. Development-only fallback may still use PowerShell.
 
 Release checks exercise a fresh cluster with system PostgreSQL lookup disabled, using bundled Java and PostgreSQL: account creation, transactions, backup/restore, graceful owned-server shutdown, and restart. A packaged native launcher check opens no ledger. These checks do not substitute for clean Windows VM install/update/uninstall testing.
+
+## Payee rules (1.6.0)
+
+The idempotent startup migration creates `payee_rules` after accounts/categories. Preferences are per-profile. Backups now write format version 2 and include this table; the reader accepts version 1 without rules and clears existing rules when restoring that older snapshot. Version-2 backups cannot be read by earlier app versions. Category rename updates rules in the same transaction as existing references.
+
+`PayeeRulesCheck` uses fresh test databases on 55439 to verify matching, date/ID precedence, Income/Expense and profile isolation, archived choices, parameter binding, category rename, explicit Swing apply behavior, new/old backup round trips, and checksum rollback. It also runs the existing full backup integration checks. Run it only in a disposable test cluster with an empty `postgres` database and a `ledger_test` role; it creates `payee_source`, `payee_target`, `backup_source`, and `backup_target`.
