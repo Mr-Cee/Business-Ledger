@@ -84,5 +84,3 @@ if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed; the release remains a dra
 & $gh release edit $tag --repo $Repository --draft=false --latest
 if ($LASTEXITCODE -ne 0) { throw 'Unable to publish the completed draft release.' }
 Write-Host "Published https://github.com/$Repository/releases/tag/$tag"
-
-pause
