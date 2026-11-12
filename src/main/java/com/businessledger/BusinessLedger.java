@@ -230,8 +230,15 @@ public final class BusinessLedger extends JFrame {
             if(party.getText().isBlank())throw new IllegalArgumentException("Enter a payee / customer before adding the transaction.");
             Account account = requiredAccount(transactionAccount);
             LocalDate day = LocalDate.parse(date.getText().trim()); BigDecimal value = positive(amount.getText());
+            DuplicateDetection.Key duplicateKey=new DuplicateDetection.Key(day,(String)kind.getSelectedItem(),value,account.id(),party.getText().trim());
+            java.util.List<DuplicateDetection.Match> matches=DuplicateDetection.find(db,duplicateKey);
+            if(!DuplicateDetection.confirm(this,duplicateKey,matches))return;
+            java.util.Set<Long> reviewed=new java.util.HashSet<>();for(var match:matches)reviewed.add(match.id());
             db.setAutoCommit(false);
             try {
+                try(Statement lock=db.createStatement()){lock.execute("LOCK TABLE transactions IN SHARE ROW EXCLUSIVE MODE");}
+                for(var match:DuplicateDetection.find(db,duplicateKey))if(!reviewed.contains(match.id()))
+                    throw new SQLException("A new matching transaction appeared. Nothing added; submit again to review it.");
                 try (PreparedStatement s = db.prepareStatement("INSERT INTO transactions(entry_date,kind,category,amount,party,notes,account_id) SELECT ?,?,?,?,?,?,id FROM accounts WHERE id=? AND active")) {
                     bind(s, new Object[]{day,kind.getSelectedItem(),categories.getSelectedItem(),value,party.getText().trim(),notes.getText().trim(),account.id()});
                     if (s.executeUpdate() != 1) throw new SQLException("The selected account is no longer active.");

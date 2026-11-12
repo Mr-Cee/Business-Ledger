@@ -22,12 +22,14 @@ final class CsvImportWizard extends JDialog {
     private final JComboBox<String> amountMode=new JComboBox<>(new String[]{"Signed amount: + income, - expense","Signed amount: + expense, - income","All amounts are expenses","All amounts are income","Separate Debit and Credit columns"});
     private final JComboBox<String> defaultCategory=new JComboBox<>();
     private final JComboBox<Account> defaultAccount=new JComboBox<>();
-    private final JCheckBox createCategories=new JCheckBox("Create missing CSV categories when importing",true),skipDuplicates=new JCheckBox("Skip exact duplicates (same date, type, category, amount, payee, notes, account)",true);
+    private final JCheckBox createCategories=new JCheckBox("Create missing CSV categories when importing",true),skipDuplicates=new JCheckBox("Skip possible duplicates (date, type, amount, payee and account)",true);
     private final CardLayout cards=new CardLayout();
     private final JPanel content=new JPanel(cards);
     private final JButton back=new JButton("Back to mapping"),previewButton=new JButton("Validate & preview"),importButton=new JButton("Import transactions"),cancel=new JButton("Cancel");
     private final JTextArea status=new JTextArea(3,0),issues=new JTextArea(5,0);
-    private final DefaultTableModel previewRows=readonly("Preview row","Date","Type","Category","Amount ($)","Payee / customer","Notes","Account");
+    private final DefaultTableModel previewRows=readonly("Preview row","Date","Type","Category","Amount ($)","Payee / customer","Notes","Account","Possible duplicate of");
+    private final JButton reviewDuplicates=new JButton("Review duplicates");
+    private final Set<Integer> keepDuplicates=new HashSet<>();
     private final Map<Long,String> accountNames=new HashMap<>();
     private CsvImport.Preview preview;
     private boolean imported,busy;
@@ -72,9 +74,10 @@ final class CsvImportWizard extends JDialog {
         issues.setEditable(false);issues.setLineWrap(true);issues.setWrapStyleWord(true);JSplitPane split=new JSplitPane(JSplitPane.VERTICAL_SPLIT,new JScrollPane(resultTable),new JScrollPane(issues));split.setResizeWeight(.8);previewPanel.add(split);content.add(previewPanel,"preview");
         status.setEditable(false);status.setLineWrap(true);status.setWrapStyleWord(true);status.setBackground(getBackground());status.setText(csv.rows().size()+" CSV rows loaded. Select mappings, then validate. Nothing is saved until you click Import transactions.");
         back.setEnabled(false);importButton.setEnabled(false);
-        back.addActionListener(e->{cards.show(content,"mapping");back.setEnabled(false);previewButton.setEnabled(true);importButton.setEnabled(false);status.setText("Adjust mappings, then validate again.");});
+        back.addActionListener(e->{cards.show(content,"mapping");reviewDuplicates.setEnabled(false);back.setEnabled(false);previewButton.setEnabled(true);importButton.setEnabled(false);status.setText("Adjust mappings, then validate again.");});
         previewButton.addActionListener(e->prepare());importButton.addActionListener(e->save());cancel.addActionListener(e->{if(!busy)dispose();});
-        WrapPanel actions=new WrapPanel();actions.add(back);actions.add(previewButton);actions.add(importButton);actions.add(cancel);
+        reviewDuplicates.setEnabled(false);reviewDuplicates.addActionListener(e->reviewDuplicates());
+        WrapPanel actions=new WrapPanel();actions.add(back);actions.add(previewButton);actions.add(reviewDuplicates);actions.add(importButton);actions.add(cancel);
         JPanel bottom=new JPanel(new BorderLayout());bottom.add(status);bottom.add(actions,BorderLayout.SOUTH);add(content);add(bottom,BorderLayout.SOUTH);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);addWindowListener(new java.awt.event.WindowAdapter(){@Override public void windowClosing(java.awt.event.WindowEvent e){if(!busy)dispose();}});
         Rectangle screen=GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();setSize(Math.min(960,screen.width-60),Math.min(780,screen.height-60));setLocationRelativeTo(owner);
@@ -84,30 +87,62 @@ final class CsvImportWizard extends JDialog {
     private void guess(String target,String...aliases){JComboBox<Column> box=mappings.get(target);for(int i=1;i<box.getItemCount();i++){String name=box.getItemAt(i).name().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","");if(Arrays.asList(aliases).contains(name)){box.setSelectedIndex(i);return;}}}
     private int column(String label){return ((Column)mappings.get(label).getSelectedItem()).index();}
     private CsvImport.Options options(){Account account=(Account)defaultAccount.getSelectedItem();return new CsvImport.Options(new CsvImport.Mapping(column("Date"),column("Type (optional)"),column("Category (optional)"),column("Amount"),column("Debit (money out)"),column("Credit (money in)"),column("Payee / customer (optional)"),column("Notes (optional)"),column("Account name (optional)")),(String)dates.getSelectedItem(),CsvImport.AmountMode.values()[amountMode.getSelectedIndex()],(String)defaultCategory.getSelectedItem(),account==null?-1:account.id(),createCategories.isSelected(),skipDuplicates.isSelected());}
-    private void setBusy(boolean value){busy=value;previewButton.setEnabled(!value);back.setEnabled(!value && preview!=null);importButton.setEnabled(!value && preview!=null && preview.errorCount()==0 && !preview.entries().isEmpty());cancel.setEnabled(!value);}
+    private void setBusy(boolean value){busy=value;reviewDuplicates.setEnabled(!value&&preview!=null&&preview.duplicates()>0);previewButton.setEnabled(!value);back.setEnabled(!value && preview!=null);importButton.setEnabled(!value && preview!=null && preview.errorCount()==0 && !preview.entries().isEmpty());cancel.setEnabled(!value);}
     private void prepare(){
         CsvImport.Options options=options();setBusy(true);status.setText("Validating CSV rows and checking duplicates…");
         new SwingWorker<CsvImport.Preview,Void>(){
             protected CsvImport.Preview doInBackground()throws Exception{return CsvImport.preview(db,csv,options);}
             protected void done(){
                 try{
-                    preview=get();previewRows.setRowCount(0);int number=0;
-                    for(CsvImport.Entry entry:preview.entries().subList(0,Math.min(200,preview.entries().size())))previewRows.addRow(new Object[]{++number,entry.date(),entry.type(),entry.category(),entry.amount(),entry.party(),entry.notes(),accountNames.get(entry.account())});
+                    preview=get();keepDuplicates.clear();previewRows.setRowCount(0);int number=0;
+                    for(CsvImport.Entry entry:preview.entries().subList(0,Math.min(200,preview.entries().size()))){String reason=preview.duplicateReasons().get(number);previewRows.addRow(new Object[]{++number,entry.date(),entry.type(),entry.category(),entry.amount(),entry.party(),entry.notes(),accountNames.get(entry.account()),reason});}
                     // Record numbers for invalid rows are listed in the validation details below.
-                    issues.setText(preview.errorCount()==0?"All rows validated. Extra CSV columns will be discarded.\nNew categories: "+(preview.newCategories().isEmpty()?"none":String.join(", ",new TreeSet<>(preview.newCategories())))+"\nExact-duplicate detection can skip legitimate identical purchases. Return to mapping and turn it off if you need those rows.":String.join("\n",preview.errors())+(preview.errorCount()>50?"\nOnly the first 50 errors are shown.":""));issues.setCaretPosition(0);
+                    issues.setText(preview.errorCount()==0?"All rows validated. Extra CSV columns will be discarded.\nNew categories: "+(preview.newCategories().isEmpty()?"none":String.join(", ",new TreeSet<>(preview.newCategories())))+"\nPossible matches ignore category and notes, and normalize payee case/spacing. Review duplicates to keep individual legitimate repeats. All matches are available there, including rows beyond the 200-row preview.":String.join("\n",preview.errors())+(preview.errorCount()>50?"\nOnly the first 50 errors are shown.":""));issues.setCaretPosition(0);
                     int planned=preview.entries().size()-(options.skipDuplicates()?preview.duplicates():0);
-                    status.setText(preview.entries().size()+" valid rows; "+preview.errorCount()+" errors; "+preview.duplicates()+" exact duplicate rows. Planned import: "+planned+". Preview displays up to 200 valid rows. Nothing saved yet.");cards.show(content,"preview");
+                    status.setText(preview.entries().size()+" valid rows; "+preview.errorCount()+" errors; "+preview.duplicates()+" possible duplicate rows. Planned import: "+planned+". Preview displays up to 200 valid rows. Nothing saved yet.");cards.show(content,"preview");
                 }catch(Exception ex){preview=null;showError(ex);}
                 finally{setBusy(false);previewButton.setEnabled(preview==null);}
             }
         }.execute();
     }
     private void save(){
+        if(preview==null||busy)return;
+        if(preview.duplicates()>0){
+            int skipped=preview.options().skipDuplicates()?preview.duplicates()-keepDuplicates.size():0;
+            String message=(preview.entries().size()-skipped)+" rows will be imported; "+skipped+" possible duplicates skipped.\n"+
+                    (preview.options().skipDuplicates()?keepDuplicates.size()+" flagged rows are marked Keep.":"Skipping is OFF. All repeats will be imported.")+"\nContinue?";
+            if(JOptionPane.showOptionDialog(this,message,"Confirm duplicate choices",JOptionPane.DEFAULT_OPTION,JOptionPane.WARNING_MESSAGE,null,new String[]{"Cancel","Import"},"Cancel")!=1)return;
+        }
         if(preview==null || busy)return;setBusy(true);status.setText("Importing transactions…");
         new SwingWorker<CsvImport.Result,Void>(){
-            protected CsvImport.Result doInBackground()throws Exception{return CsvImport.commit(db,preview);}
+            protected CsvImport.Result doInBackground()throws Exception{return CsvImport.commit(db,preview,keepDuplicates);}
             protected void done(){try{CsvImport.Result result=get();imported=true;JOptionPane.showMessageDialog(CsvImportWizard.this,result.imported()+" transactions imported; "+result.skipped()+" duplicates skipped.");dispose();}catch(Exception ex){showError(ex);setBusy(false);}}
         }.execute();
+    }
+    static DefaultTableModel duplicateReviewRows(CsvImport.Preview preview,Set<Integer> kept,Map<Long,String> names){
+        DefaultTableModel model=new DefaultTableModel(new String[]{"Preview row","Date","Type","Amount ($)","Payee / customer","Account","Matches","Keep","Category","Notes"},0){
+            @Override public boolean isCellEditable(int row,int col){return col==7&&preview.options().skipDuplicates();}
+            @Override public Class<?> getColumnClass(int col){return col==7?Boolean.class:col==0?Integer.class:col==3?java.math.BigDecimal.class:Object.class;}
+        };
+        for(int i=0;i<preview.entries().size();i++)if(!preview.duplicateReasons().get(i).isEmpty()){
+            CsvImport.Entry e=preview.entries().get(i);model.addRow(new Object[]{i+1,e.date(),e.type(),e.amount(),e.party(),names.getOrDefault(e.account(),Long.toString(e.account())),preview.duplicateReasons().get(i),!preview.options().skipDuplicates()||kept.contains(i),e.category(),e.notes()});
+        }
+        return model;
+    }
+    private void reviewDuplicates(){
+        if(preview==null||busy)return;
+        DefaultTableModel model=duplicateReviewRows(preview,keepDuplicates,accountNames);
+        JTable table=new JTable(model);table.setAutoCreateRowSorter(true);table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        for(int i=0;i<table.getColumnCount();i++)table.getColumnModel().getColumn(i).setPreferredWidth(i==6?200:i==7?60:130);
+        JScrollPane scroll=new JScrollPane(table);Rectangle screen=GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();scroll.setPreferredSize(new Dimension(Math.min(1000,screen.width-120),Math.min(400,screen.height-200)));
+        JPanel panel=new JPanel(new BorderLayout(8,8));panel.add(text("All "+model.getRowCount()+" flagged rows are listed. Check Keep for separate, legitimate transactions you want imported. Unchecked rows are skipped. Category and notes do not affect matching.\n"+(preview.options().skipDuplicates()?"Nothing is saved by this review.":"Skipping is OFF: all rows will be imported. Return to mapping to turn skipping on."),3),BorderLayout.NORTH);panel.add(scroll);
+        if(JOptionPane.showConfirmDialog(this,panel,"Review possible duplicates",JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE)==JOptionPane.OK_OPTION){
+            if(table.isEditing())table.getCellEditor().stopCellEditing();
+            keepDuplicates.clear();
+            if(preview.options().skipDuplicates())for(int i=0;i<model.getRowCount();i++)if(Boolean.TRUE.equals(model.getValueAt(i,7)))keepDuplicates.add(((Integer)model.getValueAt(i,0))-1);
+            int skipped=preview.options().skipDuplicates()?preview.duplicates()-keepDuplicates.size():0;
+            status.setText(preview.entries().size()+" valid rows; "+preview.errorCount()+" errors; "+preview.duplicates()+" possible duplicates. Marked Keep: "+keepDuplicates.size()+". Planned import: "+(preview.entries().size()-skipped)+". Nothing saved yet.");
+        }
     }
     private void showError(Exception ex){Throwable cause=ex.getCause()==null?ex:ex.getCause();status.setText("Unable to continue. Nothing imported.");JOptionPane.showMessageDialog(this,cause.getMessage(),"CSV import",JOptionPane.ERROR_MESSAGE);}
 }

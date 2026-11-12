@@ -1,5 +1,12 @@
 # Release history
 
+## 1.7.0 - 2026-11-12
+
+- Added manual-entry duplicate review with existing transaction details and Cancel / Add anyway choices, defaulting to Cancel.
+- Unified possible-duplicate matching for manual entry and CSV import: same date, type, amount, account and normalized full payee, regardless of category or notes. Transfers are excluded.
+- CSV previews show match sources. Review duplicates lists all flagged rows with per-row Keep choices; imports default to skipping other possible duplicates and confirm their planned counts.
+- Import and manual saves recheck matches while serialized with transaction writes; CSV imports remain atomic.
+
 ## 1.6.2 - 2026-11-12
 
 - Income & expenses focuses Payee / customer when opened and after a successful save. Tab accepts a payee completion without leaving the field; the next Tab moves to Amount. Without a completion, Tab moves directly to Amount.

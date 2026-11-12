@@ -59,3 +59,9 @@ Release checks exercise a fresh cluster with system PostgreSQL lookup disabled, 
 The idempotent startup migration creates `payee_rules` after accounts/categories. Preferences are per-profile. Backups now write format version 2 and include this table; the reader accepts version 1 without rules and clears existing rules when restoring that older snapshot. Version-2 backups cannot be read by earlier app versions. Category rename updates rules in the same transaction as existing references.
 
 `PayeeRulesCheck` uses fresh test databases on 55439 to verify matching, date/ID precedence, Income/Expense and profile isolation, archived choices, parameter binding, category rename, explicit Swing apply behavior, new/old backup round trips, and checksum rollback. It also runs the existing full backup integration checks. Run it only in a disposable test cluster with an empty `postgres` database and a `ledger_test` role; it creates `payee_source`, `payee_target`, `backup_source`, and `backup_target`.
+
+## Duplicate detection (1.7.0)
+
+No schema changes. Shared normalized keys compare date/type/amount/account/payee and intentionally ignore category and notes. Matching is scoped to the connected profile database and excludes transfers. Manual saves show matching IDs before entering a transaction, then lock and recheck before inserting. Imports retain the existing SHARE ROW EXCLUSIVE lock, recheck against saved and within-file keys, and only honor Keep overrides for flagged preview-row indices. No lock is held during user review.
+
+DuplicateDetectionCheck verifies normalized keys and all-row review without a database. With a fresh disposable 55439 database it additionally verifies manual match lookup, different category/notes, CSV per-row Keep, matches added after preview, deliberate repeats and atomic rollback. CsvImportCheck covers the existing parser/import behavior.

@@ -16,7 +16,7 @@ final class CsvImport {
     enum AmountMode { SIGNED, REVERSED, EXPENSE, INCOME, DEBIT_CREDIT }
     record Options(Mapping mapping,String dateFormat,AmountMode mode,String category,long account,boolean createCategories,boolean skipDuplicates) {}
     record Entry(LocalDate date,String type,String category,BigDecimal amount,String party,String notes,long account) {}
-    record Preview(List<Entry> entries,List<String> errors,int errorCount,int duplicates,Set<String> newCategories,Options options) {}
+    record Preview(List<Entry> entries,List<String> errors,int errorCount,int duplicates,Set<String> newCategories,Options options,List<String> duplicateReasons) {}
     record Result(int imported,int skipped) {}
 
     static Table read(Path path,Charset charset,char delimiter,boolean header)throws IOException {
@@ -82,12 +82,6 @@ final class CsvImport {
             default -> throw new IllegalArgumentException("Type must be Income/Expense (or Credit/Debit), not '"+raw+"'. Record account transfers using Accounts & transfers.");
         };
     }
-    static Set<Entry> existing(Connection db)throws SQLException {
-        Set<Entry> entries=new HashSet<>();
-        try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT entry_date,kind,category,amount,party,notes,account_id FROM transactions WHERE account_id IS NOT NULL")) {
-            while(r.next())entries.add(new Entry(r.getDate(1).toLocalDate(),r.getString(2),r.getString(3),r.getBigDecimal(4).setScale(2),r.getString(5),r.getString(6),r.getLong(7)));
-        }return entries;
-    }
     static Preview preview(Connection db,Table table,Options options)throws SQLException {
         Mapping m=options.mapping();
         if(m.date()<0)throw new IllegalArgumentException("Map the transaction Date column.");
@@ -100,7 +94,7 @@ final class CsvImport {
         Set<String> categories=new HashSet<>();Map<String,Long> accounts=new HashMap<>();
         try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT name FROM categories")){while(r.next())categories.add(r.getString(1));}
         try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT name,id FROM accounts WHERE active")){while(r.next())accounts.put(r.getString(1),r.getLong(2));}
-        Set<Entry> seen=existing(db);List<Entry> entries=new ArrayList<>();List<String> errors=new ArrayList<>();Set<String> newCategories=new TreeSet<>();int duplicates=0,errorCount=0;
+        Map<DuplicateDetection.Key,String> seen=DuplicateDetection.existing(db);List<Entry> entries=new ArrayList<>();List<String> errors=new ArrayList<>(),duplicateReasons=new ArrayList<>();Set<String> newCategories=new TreeSet<>();int duplicates=0,errorCount=0;
         for(int index=0;index<table.rows().size();index++) {
             List<String> row=table.rows().get(index);if(row.stream().allMatch(String::isBlank))continue;
             try {
@@ -134,29 +128,37 @@ final class CsvImport {
                 }
                 if(!accounts.containsValue(account))throw new IllegalArgumentException("Choose an active default account.");
                 Entry entry=new Entry(date,kind,category,amount,value(row,m.party()),value(row,m.notes()),account);
-                if(!seen.add(entry))duplicates++;
+                String match=seen.putIfAbsent(DuplicateDetection.key(entry),"Earlier CSV record #"+(index+table.firstRecord()));
+                if(match!=null)duplicates++;
+                duplicateReasons.add(match==null?"":match);
                 entries.add(entry);
             }catch(IllegalArgumentException | java.time.DateTimeException ex) {
                 errorCount++;if(errors.size()<50)errors.add("CSV record "+(index+table.firstRecord())+": "+ex.getMessage());
             }
         }
-        return new Preview(List.copyOf(entries),List.copyOf(errors),errorCount,duplicates,Set.copyOf(newCategories),options);
+        return new Preview(List.copyOf(entries),List.copyOf(errors),errorCount,duplicates,Set.copyOf(newCategories),options,List.copyOf(duplicateReasons));
     }
     static Result commit(Connection db,Preview preview)throws SQLException {
+        return commit(db,preview,Set.of());
+    }
+    static Result commit(Connection db,Preview preview,Set<Integer> keepDuplicates)throws SQLException {
         if(preview.errorCount()>0 || preview.entries().isEmpty())throw new IllegalArgumentException("Validate a nonempty file without errors before importing.");
+        keepDuplicates=Set.copyOf(keepDuplicates);
+        for(int index:keepDuplicates)if(index<0||index>=preview.entries().size()||preview.duplicateReasons().get(index).isEmpty())throw new IllegalArgumentException("Review duplicate rows again before importing.");
         db.setAutoCommit(false);
         try {
             // Serialize imports with transaction writes, so duplicate checks cannot race.
             try(Statement s=db.createStatement()){s.execute("LOCK TABLE transactions IN SHARE ROW EXCLUSIVE MODE");}
             Set<Long> active=new HashSet<>();
             try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT id FROM accounts WHERE active FOR SHARE")){while(r.next())active.add(r.getLong(1));}
-            Set<Entry> seen=existing(db);int imported=0,skipped=0;
+            Set<DuplicateDetection.Key> seen=new HashSet<>(DuplicateDetection.existing(db).keySet());int imported=0,skipped=0,index=0;
             try(PreparedStatement category=db.prepareStatement("INSERT INTO categories(name) VALUES (?) ON CONFLICT DO NOTHING");
                 PreparedStatement insert=db.prepareStatement("INSERT INTO transactions(entry_date,kind,category,amount,party,notes,account_id) VALUES (?,?,?,?,?,?,?)")) {
                 Set<String> created=new HashSet<>();
                 for(Entry entry:preview.entries()) {
-                    boolean duplicate=!seen.add(entry);
-                    if(duplicate && preview.options().skipDuplicates()){skipped++;continue;}
+                    boolean duplicate=!seen.add(DuplicateDetection.key(entry));
+                    boolean keep=keepDuplicates.contains(index++);
+                    if(duplicate && preview.options().skipDuplicates()&&!keep){skipped++;continue;}
                     if(!active.contains(entry.account()))throw new SQLException("An import account is no longer active. Nothing was imported.");
                     if(preview.newCategories().contains(entry.category()) && created.add(entry.category())){category.setString(1,entry.category());category.executeUpdate();}
                     insert.setObject(1,entry.date());insert.setString(2,entry.type());insert.setString(3,entry.category());insert.setBigDecimal(4,entry.amount());insert.setString(5,entry.party());insert.setString(6,entry.notes());insert.setLong(7,entry.account());insert.addBatch();imported++;

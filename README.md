@@ -1,6 +1,12 @@
 # Business Ledger
 
-**Current version: 1.6.2.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.7.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Duplicate detection
+
+Manual entries warn when date, type, amount, account and full payee name match a saved transaction. Payee matching ignores capitalization and extra whitespace; category and notes may differ. Review the existing rows and choose Cancel or Add anyway for a legitimate separate transaction. Transfers are not compared.
+
+CSV previews flag matches against the current ledger and earlier rows in the file. Skip possible duplicates is on by default. Review duplicates lists all flagged rows, including those past the first 200 preview rows; check Keep for individual legitimate repeats. Returning to mapping and validating again resets Keep choices. Turning skipping off imports all rows after confirmation. Blank CSV payees match other blank payees with the same date/type/amount/account, so review those carefully. Imports recheck matches before saving; final counts can differ if the ledger changed after preview. Importing is atomic; canceling review or manual confirmation writes nothing.
 
 ## Keyboard transaction entry
 
