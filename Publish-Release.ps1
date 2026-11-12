@@ -33,7 +33,7 @@ $source += foreach ($folder in @('src/main/java/com/businessledger','src/test/ja
 $source += 'src/main/resources/release.properties','sql/setup.sql'
 $source += 'artwork/business-ledger-source.png'
 $source += Get-ChildItem 'src/main/resources/icons' -File | Where-Object { $_.Extension -in '.png','.ico' } | ForEach-Object { 'src/main/resources/icons/'+$_.Name }
-$source += Get-ChildItem installer -File | Where-Object { $_.Extension -in '.cs','.py','.manifest' } | ForEach-Object { 'installer/'+$_.Name }
+$source += Get-ChildItem installer -File | Where-Object { $_.Extension -in '.cs','.cpp','.py','.manifest' } | ForEach-Object { 'installer/'+$_.Name }
 if (!(Test-Path -LiteralPath '.git')) {
     git init --initial-branch=main
     if ($LASTEXITCODE -ne 0) { throw 'Unable to initialize source control.' }

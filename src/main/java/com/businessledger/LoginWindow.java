@@ -6,6 +6,7 @@ import java.awt.event.*;
 import java.util.Arrays;
 
 final class LoginWindow extends JDialog {
+    @Override public void dispose() { WindowsTaskbar.clear(this); super.dispose(); }
     private final LoginStore store;
     private final JComboBox<String> names = new JComboBox<>();
     private final JPasswordField password = new JPasswordField(24);

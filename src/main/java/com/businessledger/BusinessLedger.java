@@ -16,6 +16,7 @@ import java.util.Locale;
 
 /** Single-user business ledger. All SQL values are bound parameters. */
 public final class BusinessLedger extends JFrame {
+    @Override public void dispose() { WindowsTaskbar.clear(this); super.dispose(); }
     private final Connection db;
     private boolean closing;
     private DashboardPanel dashboard;
@@ -1120,6 +1121,7 @@ public final class BusinessLedger extends JFrame {
         JButton b = new JButton(label); b.addActionListener(e -> { try { action.run(); } catch (Exception ex) { JOptionPane.showMessageDialog(this, ex.getMessage(), "Unable to complete action", JOptionPane.ERROR_MESSAGE); } }); return b;
     }
     public static void main(String[] args) {
+        WindowsTaskbar.initialize();
         SwingUtilities.invokeLater(() -> {
             try {
                 AppPaths.initialize();

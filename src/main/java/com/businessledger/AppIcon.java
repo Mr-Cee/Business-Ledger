@@ -19,5 +19,5 @@ final class AppIcon {
         return List.copyOf(images);
     }
     static List<Image> images() { return IMAGES; }
-    static void apply(Window window) { window.setIconImages(IMAGES); }
+    static void apply(Window window) { window.setIconImages(IMAGES); WindowsTaskbar.attach(window); }
 }

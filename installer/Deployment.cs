@@ -58,6 +58,20 @@ namespace BusinessLedgerDeployment {
         internal static string StartMenuLink { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Business Ledger","Business Ledger.lnk"); } }
         internal static string DesktopLink { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"Business Ledger.lnk"); } }
         private static object Shell() { Type type=Type.GetTypeFromProgID("WScript.Shell");if(type==null)throw new InvalidOperationException("Windows shortcuts are unavailable.");return Activator.CreateInstance(type); }
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr LoadLibraryEx(string path,IntPtr file,uint flags);
+        [DllImport("kernel32.dll",CharSet=CharSet.Ansi,ExactSpelling=true)] static extern IntPtr GetProcAddress(IntPtr module,string name);
+        [DllImport("kernel32.dll")] static extern bool FreeLibrary(IntPtr module);
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)] delegate int SetShortcutIdentity([MarshalAs(UnmanagedType.LPWStr)] string path);
+        internal static void ApplyShortcutIdentity(string library,string path) {
+            IntPtr module=LoadLibraryEx(library,IntPtr.Zero,0x100|0x1000);
+            if(module==IntPtr.Zero)throw new IOException("The Windows taskbar integration component could not be loaded.");
+            try {
+                IntPtr address=GetProcAddress(module,"LedgerSetShortcutIdentity");
+                if(address==IntPtr.Zero)throw new IOException("The taskbar shortcut integration entry point is missing.");
+                SetShortcutIdentity set=(SetShortcutIdentity)Marshal.GetDelegateForFunctionPointer(address,typeof(SetShortcutIdentity));
+                Marshal.ThrowExceptionForHR(set(path));
+            } finally {FreeLibrary(module);}
+        }
         internal static void Shortcut(string path) {
             Directory.CreateDirectory(Path.GetDirectoryName(path));object shell=Shell(),link=null;
             try {
@@ -65,8 +79,9 @@ namespace BusinessLedgerDeployment {
                 Type type=link.GetType();type.InvokeMember("TargetPath",BindingFlags.SetProperty,null,link,new object[]{Launcher});
                 type.InvokeMember("WorkingDirectory",BindingFlags.SetProperty,null,link,new object[]{Root});
                 type.InvokeMember("Description",BindingFlags.SetProperty,null,link,new object[]{"Business Ledger"});
-                type.InvokeMember("IconLocation",BindingFlags.SetProperty,null,link,new object[]{CurrentExecutable()+",0"});
+                type.InvokeMember("IconLocation",BindingFlags.SetProperty,null,link,new object[]{Launcher+",0"});
                 type.InvokeMember("Save",BindingFlags.InvokeMethod,null,link,null);
+                ApplyShortcutIdentity(Path.Combine(Path.GetDirectoryName(CurrentExecutable()),"LedgerWindows.dll"),path);
             } finally { if(link!=null)Marshal.FinalReleaseComObject(link);Marshal.FinalReleaseComObject(shell); }
         }
         internal static void RemoveShortcut(string path) {
@@ -223,6 +238,7 @@ namespace BusinessLedgerDeployment {
             if(!(new Version("1.0.1")>new Version("1.0.0")))throw new IOException("Version comparison failed.");
             string config=File.ReadAllText(Path.Combine(root,"app","BusinessLedger.cfg"));if(config.Contains("-Dledger.home="))throw new IOException("Installed payload has a fixed data folder.");
             foreach(string relative in new string[]{"vcruntime140.dll","msvcp140.dll",@"postgres\bin\vcruntime140.dll"})if(new FileInfo(Path.Combine(root,relative)).Length<1024)throw new IOException("A required native runtime file is missing or invalid.");
+            foreach(string relative in new string[]{"LedgerWindows.dll","BusinessLedger.ico"})if(!File.Exists(Path.Combine(root,relative)))throw new IOException("Windows taskbar integration files are missing.");
             File.WriteAllText(report,"Verified installer payload SHA-256, safe extraction, version "+ReleaseInfo.Version+", included Java/PostgreSQL/C++ runtimes, and independent data location.\nExtracted test payload: "+root);
         }
         internal static void ResourceFile(string name,string target) {

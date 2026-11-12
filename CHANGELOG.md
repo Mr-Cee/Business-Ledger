@@ -1,5 +1,11 @@
 # Release history
 
+## 1.4.2 - 2026-11-11
+
+- Fixed the Java taskbar icon by assigning the Java host and Swing windows a stable Windows application identity with Ledger's icon and relaunch command.
+- Desktop and Start menu shortcuts use the same application identity and stable launcher icon, preserving taskbar grouping across releases.
+- Portable updates retain uniquely versioned native integration files so a running app's DLL is never replaced.
+
 ## 1.4.1 - 2026-11-11
 
 - Added a custom navy and teal bookkeeping ledger icon with a gold bookmark and checkmark.

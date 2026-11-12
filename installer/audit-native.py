@@ -75,7 +75,7 @@ def main():
     for file in image.rglob("*"):
         if file.suffix.lower() in {".dll", ".exe"} and "licenses" not in file.parts:
             files.setdefault(file.name.lower(), []).append(file)
-    required = [*image.glob("*.exe"), *image.glob("runtime/bin/*.exe"), *image.glob("runtime/bin/*.dll"),
+    required = [*image.glob("*.exe"), *image.glob("*.dll"), *image.glob("runtime/bin/*.exe"), *image.glob("runtime/bin/*.dll"),
                 *image.glob("runtime/bin/server/*.dll"), *image.glob("postgres/bin/*.exe"), image / "postgres/lib/plpgsql.dll"]
     pending, seen, errors, os_dependencies = list(required), set(), [], set()
     export_cache = {}

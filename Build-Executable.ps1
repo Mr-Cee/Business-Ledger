@@ -30,7 +30,7 @@ if ($UseExistingRuntime) {
     Copy-Item -LiteralPath $existingExe -Destination (Join-Path $image 'BusinessLedgerHost.exe')
     Copy-Item -LiteralPath (Join-Path $existing 'runtime') -Destination $image -Recurse
     Copy-Item -Path (Join-Path $inputDir '*') -Destination $app
-    $configText = '[Application]' + "`napp.classpath=`$APPDIR\$jarName`napp.mainclass=com.businessledger.BusinessLedger`napp.classpath=`$APPDIR\postgresql-42.7.8.jar`n`n[JavaOptions]`njava-options=-Djpackage.app-version=$version`n"
+    $configText = '[Application]' + "`napp.classpath=`$APPDIR\$jarName`napp.mainclass=com.businessledger.BusinessLedger`napp.classpath=`$APPDIR\postgresql-42.7.8.jar`n`n[JavaOptions]`njava-options=-Djpackage.app-version=$version`njava-options=--enable-native-access=ALL-UNNAMED`n"
     [IO.File]::WriteAllText((Join-Path $app 'BusinessLedger.cfg'),$configText,[Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText((Join-Path $app 'BusinessLedgerHost.cfg'),$configText,[Text.UTF8Encoding]::new($false))
     $metadata = Join-Path $build 'LauncherVersion.cs'
@@ -41,11 +41,13 @@ if ($UseExistingRuntime) {
 } else {
     $nativeDestination = Join-Path ([IO.Path]::GetTempPath()) "BusinessLedger-package-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Path $nativeDestination | Out-Null
-    & jpackage "-J-Djava.io.tmpdir=$build" --type app-image --name BusinessLedger --app-version $version --vendor 'Business Ledger' --input $inputDir --main-jar $jarName --main-class com.businessledger.BusinessLedger --icon $icon --dest $nativeDestination --add-modules java.desktop,java.sql,java.naming,java.security.jgss,java.management
+    & jpackage "-J-Djava.io.tmpdir=$build" --type app-image --name BusinessLedger --app-version $version --vendor 'Business Ledger' --input $inputDir --main-jar $jarName --main-class com.businessledger.BusinessLedger --icon $icon --java-options '--enable-native-access=ALL-UNNAMED' --dest $nativeDestination --add-modules java.desktop,java.sql,java.naming,java.security.jgss,java.management
     if ($LASTEXITCODE -ne 0) { throw 'Application image build failed.' }
     Copy-Item -LiteralPath (Join-Path $nativeDestination 'BusinessLedger') -Destination $Destination -Recurse
 }
 $image=Join-Path $Destination 'BusinessLedger'
+& (Join-Path $PSScriptRoot 'Build-WindowsTaskbar.ps1') -Destination $image
+Copy-Item -LiteralPath $icon -Destination (Join-Path $image 'BusinessLedger.ico')
 $helperVersion=Join-Path $build 'SecretsVersion.cs'
 [IO.File]::WriteAllText($helperVersion,"using System.Reflection;[assembly:AssemblyFileVersion(`"$version.0`")][assembly:AssemblyVersion(`"$version.0`" )]",[Text.UTF8Encoding]::new($false))
 $compiler=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
