@@ -91,7 +91,7 @@ final class HelpGuide extends JPanel {
         new Topic("Business mileage", """
             <h2>Record a business trip</h2>
             <p>Use this screen to keep a log of business driving.</p>
-            <ol><li>Choose the trip date.</li><li>Enter <b>From</b> (where you started) and <b>To</b> (where you went).</li><li>Enter the <b>Business purpose</b>, such as meeting a customer.</li><li>Enter <b>Miles</b> as a positive distance, then click <b>Add trip</b>.</li></ol>
+            <ol><li>Choose the trip <b>Date</b> (required).</li><li>Optionally enter <b>From</b> (where you started), <b>To</b> (where you went), and <b>Business purpose</b>. You can leave any or all three blank.</li><li>Enter <b>Miles</b> as a positive distance (required), then click <b>Add trip</b>.</li></ol>
             <p>Review the trip in the table after saving. To remove a mistaken record, select its row and click <b>Delete selected</b>. Record the corrected trip if needed.</p>
             <p>Mileage is a distance record, not a money transaction. Recording miles does not automatically add an expense or change your bank balance. The Dashboard mileage card uses the selected dates.</p>
             """),

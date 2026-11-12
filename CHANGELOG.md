@@ -1,5 +1,10 @@
 # Release history
 
+## 1.3.1 - 2026-11-11
+
+- Business mileage now requires only a valid date and positive miles. From, To, and Business purpose are optional and can all be left blank.
+- Updated mileage field labels and in-app help to explain the required and optional fields.
+
 ## 1.3.0 - 2026-11-11
 
 - Publishing script supports Windows PowerShell 5.1 without newer .NET path APIs and handles missing GitHub repositories, remotes, and releases during setup.

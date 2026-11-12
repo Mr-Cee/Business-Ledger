@@ -1,6 +1,8 @@
 # Business Ledger
 
-**Current version: 1.3.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. Close Ledger before installing and keep your existing ledger data folder selected to preserve accounts and records. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.3.1.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. Close Ledger before installing and keep your existing ledger data folder selected to preserve accounts and records. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+Business mileage requires a valid date and positive miles. From, To, and Business purpose are optional.
 
 ## Updates
 

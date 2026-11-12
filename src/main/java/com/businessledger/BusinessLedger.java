@@ -562,11 +562,11 @@ public final class BusinessLedger extends JFrame {
     private JPanel mileagePanel() {
         JPanel p = new JPanel(new BorderLayout(8, 8)), fields = new WrapPanel();
         JTextField date = new JTextField(LocalDate.now().toString(), 10), origin = new JTextField(12), destination = new JTextField(12), purpose = new JTextField(18), miles = new JTextField(7);
-        field(fields, "Date (YYYY-MM-DD)", new DateChooser(date)); field(fields, "From", origin); field(fields, "To", destination); field(fields, "Business purpose", purpose); field(fields, "Miles", miles);
+        field(fields, "Date (YYYY-MM-DD; required)", new DateChooser(date)); field(fields, "From (optional)", origin); field(fields, "To (optional)", destination); field(fields, "Business purpose (optional)", purpose); field(fields, "Miles (required)", miles);
         JTable table = new JTable(trips); table.setAutoCreateRowSorter(true);
         JPanel actions = new WrapPanel();
         actions.add(button("Add trip", () -> {
-            execute("INSERT INTO mileage(trip_date,origin,destination,purpose,miles) VALUES (?,?,?,?,?)", LocalDate.parse(date.getText().trim()), required(origin), required(destination), required(purpose), positive(miles.getText()));
+            execute("INSERT INTO mileage(trip_date,origin,destination,purpose,miles) VALUES (?,?,?,?,?)", LocalDate.parse(date.getText().trim()), origin.getText().trim(), destination.getText().trim(), purpose.getText().trim(), positive(miles.getText()));
             origin.setText(""); destination.setText(""); purpose.setText(""); miles.setText(""); refresh();
         }));
         actions.add(button("Delete selected", () -> delete(table, "mileage")));
