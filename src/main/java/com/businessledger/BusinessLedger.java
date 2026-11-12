@@ -20,11 +20,12 @@ public final class BusinessLedger extends JFrame {
     private final Connection db;
     private boolean closing;
     private DashboardPanel dashboard;
+    private PayeeSuggestions payeeSuggestions;
     private final DefaultTableModel transactions = model("ID", "Date", "Type", "Category", "Amount", "Payee / customer", "Notes", "Account", "Running balance ($)", "Edited");
     private String loginName = "Local user";
     private final java.util.List<String> payeeHistory = new java.util.ArrayList<>();
     private final java.util.List<String> notesHistory = new java.util.ArrayList<>();
-    private record Account(long id, String name, String type, boolean active) {
+    record Account(long id, String name, String type, boolean active) {
         @Override public String toString() { return name + (active ? "" : " (archived)"); }
     }
     private final JComboBox<Account> transactionAccount = new JComboBox<>();
@@ -150,6 +151,7 @@ public final class BusinessLedger extends JFrame {
             s.executeUpdate("CREATE INDEX IF NOT EXISTS mileage_date_idx ON mileage(trip_date)");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS report_templates (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name TEXT NOT NULL UNIQUE CHECK(length(trim(name))>0), kind TEXT CHECK(kind IN ('Income','Expense')), category TEXT REFERENCES categories(name), detail BOOLEAN NOT NULL DEFAULT TRUE)");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS accounts (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name TEXT UNIQUE NOT NULL CHECK(length(trim(name))>0), account_type TEXT NOT NULL CHECK(account_type IN ('Checking','Savings','Credit','Cash','Other')), opening_balance NUMERIC(14,2) NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT TRUE)");
+            s.executeUpdate(PayeeRules.SCHEMA);
             s.executeUpdate("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS account_id BIGINT REFERENCES accounts(id)");
             s.executeUpdate("ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS account_id BIGINT REFERENCES accounts(id)");
             s.executeUpdate("ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS account_totals BOOLEAN NOT NULL DEFAULT FALSE");
@@ -281,7 +283,8 @@ public final class BusinessLedger extends JFrame {
         actions.add(button("Delete selected", () -> { selectedTransactionId(table); delete(table, "transactions"); }));
         actions.add(button("Assign / change account", () -> editTransaction(selectedTransactionId(table))));
         JPanel header = new JPanel(new BorderLayout(4,4)); header.add(fields);
-        JPanel options = new WrapPanel(); options.add(colorRows); header.add(options,BorderLayout.SOUTH);
+        payeeSuggestions=new PayeeSuggestions(db,party,kind,categories,transactionAccount);
+        JPanel options = new JPanel(new BorderLayout(4,4)); options.add(payeeSuggestions); options.add(colorRows,BorderLayout.SOUTH); header.add(options,BorderLayout.SOUTH);
         LedgerFilters filters=new LedgerFilters(table);filters.installShortcut(p);
         JPanel records=new JPanel(new BorderLayout(4,4));records.add(filters,BorderLayout.NORTH);records.add(new JScrollPane(table));
         p.add(header, BorderLayout.NORTH); p.add(records); p.add(actions, BorderLayout.SOUTH); return p;
@@ -785,6 +788,7 @@ public final class BusinessLedger extends JFrame {
         load(trips, "SELECT id,trip_date,origin,destination,purpose,miles FROM mileage ORDER BY trip_date DESC,id DESC");
         loadHistory(payeeHistory, "party"); loadHistory(notesHistory, "notes");
         reloadTemplates(null);
+        if(payeeSuggestions!=null)payeeSuggestions.refresh();
     }
 
     private void loadHistory(java.util.List<String> history, String column) throws SQLException {
@@ -827,6 +831,7 @@ public final class BusinessLedger extends JFrame {
             try {
                 execute("INSERT INTO categories(name) VALUES (?)", name);
                 execute("UPDATE transactions SET category=? WHERE category=?", name, old);
+                execute("UPDATE payee_rules SET category=? WHERE category=?", name, old);
                 execute("UPDATE report_templates SET category=? WHERE category=?", name, old);
                 execute("UPDATE report_template_categories SET category=? WHERE category=?",name,old);
                 execute("UPDATE ledger_settings SET value=? WHERE name=? AND value=?",name,IncomeScope.KEY,old);
