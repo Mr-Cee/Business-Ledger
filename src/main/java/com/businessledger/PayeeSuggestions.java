@@ -19,6 +19,7 @@ final class PayeeSuggestions extends JPanel {
         super(new BorderLayout(4,4));this.db=db;this.payee=payee;this.kind=kind;this.category=category;this.account=account;
         status.setEditable(false);status.setFocusable(false);status.setLineWrap(true);status.setWrapStyleWord(true);status.setOpaque(false);status.setFont(UIManager.getFont("Label.font"));
         add(status,BorderLayout.NORTH);WrapPanel actions=new WrapPanel();actions.add(apply);
+        apply.setToolTipText("Apply the suggested category and account (Ctrl+Enter). Does not add a transaction.");
         JButton remember=new JButton("Save payee rule"),manage=new JButton("Manage payee rules");actions.add(remember);actions.add(manage);add(actions);
         status.setToolTipText("Exact payee match, ignoring capitalization and extra spaces. Income and Expense are separate. Nothing changes until you apply.");
         apply.addActionListener(e->run(this::apply));remember.addActionListener(e->run(this::remember));manage.addActionListener(e->run(this::manage));
@@ -26,6 +27,7 @@ final class PayeeSuggestions extends JPanel {
         kind.addActionListener(e->update());update();
     }
     void refresh()throws SQLException{snapshot=PayeeRules.load(db);update();}
+    void applySuggestedRule(){run(this::apply);}
     private PayeeRules.Suggestion current(){return snapshot.find(payee.getText(),(String)kind.getSelectedItem());}
     private void update(){
         PayeeRules.Suggestion v=current();apply.setEnabled(v!=null&&v.available());

@@ -21,6 +21,7 @@ public final class BusinessLedger extends JFrame {
     private boolean closing;
     private DashboardPanel dashboard;
     private PayeeSuggestions payeeSuggestions;
+    private JTextField transactionPayee;
     private final DefaultTableModel transactions = model("ID", "Date", "Type", "Category", "Amount", "Payee / customer", "Notes", "Account", "Running balance ($)", "Edited");
     private String loginName = "Local user";
     private final java.util.List<String> payeeHistory = new java.util.ArrayList<>();
@@ -69,7 +70,8 @@ public final class BusinessLedger extends JFrame {
             }
         });
         tabs.addTab("Dashboard", dashboard);
-        tabs.addTab("Income & expenses", transactionPanel());
+        JPanel transactionPage=transactionPanel();
+        tabs.addTab("Income & expenses", transactionPage);
         JPanel accountsPage = accountsPanel();
         tabs.addTab("Accounts & transfers", accountsPage);
         tabs.addTab("Business mileage", mileagePanel());
@@ -104,6 +106,8 @@ public final class BusinessLedger extends JFrame {
         about.addActionListener(e->JOptionPane.showMessageDialog(this,"Business Ledger\nVersion "+AppVersion.version()+"\nBuilt: "+AppVersion.built()+"\n\nData folder: "+System.getProperty("ledger.home","."),"About Business Ledger",JOptionPane.INFORMATION_MESSAGE));
         help.add(about);menuBar.add(help);setJMenuBar(menuBar);
         tabs.addChangeListener(e -> {
+            if(tabs.getSelectedComponent()==transactionPage)
+                SwingUtilities.invokeLater(()->{if(tabs.getSelectedComponent()==transactionPage)transactionPayee.requestFocusInWindow();});
             if(tabs.getSelectedComponent()==charts) charts.refreshSafely();
             if(tabs.getSelectedComponent()==dashboard) dashboard.refreshSafely();
         });
@@ -217,11 +221,13 @@ public final class BusinessLedger extends JFrame {
         JComboBox<String> kind = new JComboBox<>(new String[]{"Expense", "Income"});
         kind.addActionListener(e -> { if ("Income".equals(kind.getSelectedItem())) categories.setSelectedItem("Paycheck"); });
         JTextField amount = new JTextField(8), party = new GhostField(12, () -> payeeHistory), notes = new GhostField(15, () -> notesHistory);
+        transactionPayee=party;
         JPanel fields = new WrapPanel();
         field(fields, "Date (YYYY-MM-DD)", new DateChooser(date)); field(fields, "Type", kind); field(fields, "Category", categories);
         field(fields, "Amount ($)", amount); field(fields, "Payee / customer", party); field(fields, "Notes", notes);
         field(fields, "Account", transactionAccount);
         JButton save = button("Add transaction", () -> {
+            if(party.getText().isBlank())throw new IllegalArgumentException("Enter a payee / customer before adding the transaction.");
             Account account = requiredAccount(transactionAccount);
             LocalDate day = LocalDate.parse(date.getText().trim()); BigDecimal value = positive(amount.getText());
             db.setAutoCommit(false);
@@ -235,10 +241,8 @@ public final class BusinessLedger extends JFrame {
             } catch (SQLException ex) { db.rollback(); throw ex; }
             finally { db.setAutoCommit(true); }
             amount.setText(""); party.setText(""); notes.setText(""); refresh();
-            amount.requestFocusInWindow();
+            party.requestFocusInWindow();
         });
-        for (JTextField input : new JTextField[]{date, amount, party, notes})
-            input.addActionListener(e -> save.doClick());
         notes.getActionMap().put("accept-history", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) {
                 ((GhostField) notes).acceptCompletion();
@@ -248,7 +252,9 @@ public final class BusinessLedger extends JFrame {
         notes.setToolTipText("Tab accepts the suggestion and focuses Add transaction; Enter then saves.");
         save.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ENTER"), "submit-transaction");
         save.getActionMap().put("submit-transaction", new AbstractAction() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) { save.doClick(); }
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if(!party.getText().isBlank()&&!amount.getText().isBlank())save.doClick();
+            }
         });
         save.setToolTipText("Add transaction (Enter from a transaction text field)");
         JButton category = button("Manage categories", this::manageCategories);
@@ -284,6 +290,8 @@ public final class BusinessLedger extends JFrame {
         actions.add(button("Assign / change account", () -> editTransaction(selectedTransactionId(table))));
         JPanel header = new JPanel(new BorderLayout(4,4)); header.add(fields);
         payeeSuggestions=new PayeeSuggestions(db,party,kind,categories,transactionAccount);
+        TransactionEntryKeys.install(p,(GhostField)party,amount,date,notes,
+                payeeSuggestions::applySuggestedRule,save::doClick);
         JPanel options = new JPanel(new BorderLayout(4,4)); options.add(payeeSuggestions); options.add(colorRows,BorderLayout.SOUTH); header.add(options,BorderLayout.SOUTH);
         LedgerFilters filters=new LedgerFilters(table);filters.installShortcut(p);
         JPanel records=new JPanel(new BorderLayout(4,4));records.add(filters,BorderLayout.NORTH);records.add(new JScrollPane(table));

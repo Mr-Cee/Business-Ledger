@@ -1,6 +1,10 @@
 # Business Ledger
 
-**Current version: 1.6.1.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.6.2.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Keyboard transaction entry
+
+Opening Income & expenses focuses Payee / customer. Tab accepts its autocomplete without leaving the field; the next Tab moves to Amount. With no completion, Tab moves directly to Amount. Ctrl+Enter only applies the suggested rule and keeps focus where it is. Plain Enter submits only when payee and amount are filled in; all other transaction validation still applies. After saving, focus returns to Payee / customer.
 
 ## Payee rules and suggestions
 

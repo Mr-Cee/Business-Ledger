@@ -1,5 +1,10 @@
 # Release history
 
+## 1.6.2 - 2026-11-12
+
+- Income & expenses focuses Payee / customer when opened and after a successful save. Tab accepts a payee completion without leaving the field; the next Tab moves to Amount. Without a completion, Tab moves directly to Amount.
+- Ctrl+Enter applies the suggested payee rule without submitting the transaction or moving focus. Plain Enter adds only when payee and amount are filled in; new transactions require a payee.
+
 ## 1.6.1 - 2026-11-12
 
 - Added extra width to form-field labels so Windows/Nimbus rendering does not clip Amount, Payee / customer, Notes, Search ledger, and other captions. Labels and their inputs continue to wrap together.
