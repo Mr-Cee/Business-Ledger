@@ -17,6 +17,8 @@ import java.util.Locale;
 /** Single-user business ledger. All SQL values are bound parameters. */
 public final class BusinessLedger extends JFrame {
     private final Connection db;
+    private boolean closing;
+    private DashboardPanel dashboard;
     private final DefaultTableModel transactions = model("ID", "Date", "Type", "Category", "Amount", "Payee / customer", "Notes", "Account", "Running balance ($)", "Edited");
     private String loginName = "Local user";
     private final java.util.List<String> payeeHistory = new java.util.ArrayList<>();
@@ -52,9 +54,8 @@ public final class BusinessLedger extends JFrame {
         totals.setBackground(UIManager.getColor("Panel.background"));
         JTabbedPane tabs = new JTabbedPane();
         tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        DashboardPanel dashboard = new DashboardPanel(db);
+        dashboard = new DashboardPanel(db);
         addWindowListener(new java.awt.event.WindowAdapter(){
-            private boolean closing;
             @Override public void windowClosing(java.awt.event.WindowEvent event){
                 if(closing)return;closing=true;dashboard.stopPendingRefresh();
                 try{BackupControls.closeWithBackup(BusinessLedger.this,db,()->{dispose();System.exit(0);});}finally{closing=false;}
@@ -99,6 +100,19 @@ public final class BusinessLedger extends JFrame {
         });
         add(tabs); refresh(); dashboard.refreshSafely();
         SwingUtilities.invokeLater(() -> UpdateChecker.onStartup(this));
+    }
+
+    void installUpdate(UpdateDownload.Ready ready) {
+        if (closing) return;
+        closing = true; dashboard.stopPendingRefresh();
+        try {
+            BackupControls.closeWithBackup(this, db, () -> {
+                try {
+                    UpdateDownload.launch(ready, java.nio.file.Path.of(System.getProperty("ledger.home")).toAbsolutePath().normalize());
+                    dispose(); System.exit(0);
+                } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Unable to start the update: " + ex.getMessage(), "Update not installed", JOptionPane.ERROR_MESSAGE); }
+            });
+        } finally { closing = false; }
     }
 
     private void initialize() throws SQLException {

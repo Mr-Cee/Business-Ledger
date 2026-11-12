@@ -1,5 +1,13 @@
 # Release history
 
+## 1.4.0 - 2026-11-11
+
+- Download updates inside Ledger with progress and cancellation, without opening a browser.
+- Verify installer size and SHA-256 against the release checksum before offering Install and restart; verify again before launching.
+- Install and restart honors automatic backup-on-close and keeps the app open if backup is canceled or installer launch fails.
+- Installer update handoff waits for the original app and launcher bridge to exit, installs versioned files with the same ledger data folder, and reopens Ledger at login.
+- Full install/update/restart lifecycle still requires a disposable Windows user/VM test; no real installation is run for build validation.
+
 ## 1.3.2 - 2026-11-11
 
 - Dashboard shows a red exclamation indicator, available version, and View update button when a newer stable release is found.

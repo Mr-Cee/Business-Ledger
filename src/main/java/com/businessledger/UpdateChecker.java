@@ -18,7 +18,9 @@ final class UpdateChecker {
     private static final AtomicBoolean STARTED = new AtomicBoolean();
     private static final java.beans.PropertyChangeSupport CHANGES = new java.beans.PropertyChangeSupport(UpdateChecker.class);
     private static Release available;
-    record Release(String version, URI installer, URI page) {}
+    record Release(String version, URI installer, URI page, URI checksum, long size) {
+        Release(String version, URI installer, URI page) { this(version, installer, page, null, 0); }
+    }
 
     static Release available() { return available; }
     static void addAvailabilityListener(java.beans.PropertyChangeListener listener) { CHANGES.addPropertyChangeListener(listener); }
@@ -67,12 +69,12 @@ final class UpdateChecker {
     static void showAvailable(Window owner) {
         Release release = available;
         if (release == null) { check(owner, true); return; }
-        Object[] choices = {"Download installer", "View release notes", "Later"};
+        Object[] choices = {"Download update", "View release notes", "Later"};
         int choice = JOptionPane.showOptionDialog(owner, "Business Ledger " + release.version() + " is available.\n"
-            + "You are using " + AppVersion.version() + ".\n\nDownload the installer, close Business Ledger, then run the installer.\n"
-            + "Keep your existing ledger data folder selected to retain your records.",
+            + "You are using " + AppVersion.version() + ".\n\nDownload and verify the update inside Ledger.\n"
+            + "You can then choose Install and restart. Your ledger data folder will be kept.",
             "Update available", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, choices, choices[0]);
-        if (choice == 0) browse(owner, release.installer());
+        if (choice == 0) UpdateDownload.show(owner, release);
         else if (choice == 1) browse(owner, release.page());
     }
 
@@ -127,7 +129,7 @@ final class UpdateChecker {
         if (!expectedPage.equals(release.get("html_url"))) throw new IOException("Unexpected release location");
         String file = "BusinessLedger-Setup-" + version + ".exe";
         String checksum = "BusinessLedger-Setup-" + version + ".sha256";
-        boolean installerFound = false, checksumFound = false;
+        boolean installerFound = false, checksumFound = false; long installerSize = 0;
         if (!(release.get("assets") instanceof List<?> assets)) throw new IOException("Missing release assets");
         for (Object value : assets) {
             if (!(value instanceof Map<?, ?> asset)) continue;
@@ -136,10 +138,10 @@ final class UpdateChecker {
             if (!"uploaded".equals(asset.get("state")) || !(asset.get("size") instanceof Long size) || size <= 0) continue;
             if (!(base + "download/" + tag + "/" + expectedName).equals(asset.get("browser_download_url")))
                 throw new IOException("Unexpected download location");
-            if (expectedName.equals(file)) installerFound = true; else checksumFound = true;
+            if (expectedName.equals(file)) { installerFound = true; installerSize = size; } else checksumFound = true;
         }
         // Incomplete publications do not trigger download prompts.
-        return installerFound && checksumFound ? new Release(version, URI.create(base + "download/" + tag + "/" + file), URI.create(expectedPage)) : null;
+        return installerFound && checksumFound ? new Release(version, URI.create(base + "download/" + tag + "/" + file), URI.create(expectedPage), URI.create(base + "download/" + tag + "/" + checksum), installerSize) : null;
     }
 
     static int compare(String left, String right) throws IOException {

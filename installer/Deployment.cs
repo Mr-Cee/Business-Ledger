@@ -134,6 +134,18 @@ namespace BusinessLedgerDeployment {
             try {
 #if SETUP
                 if(args.Length==2&&args[0]=="/verify") { Verify(args[1]);return 0; }
+                if(args.Length>0&&args[0]=="/update") {
+                    int parent;string home;UpdateArguments(args,out parent,out home);
+                    WaitForParent(parent,60000);
+                    // The version-stamped bridge may take a moment to exit after its Java host.
+                    for(int attempt=0;;attempt++) {
+                        try{Deployment.EnsureClosed();break;}
+                        catch(InvalidOperationException){if(attempt>=40)throw;Thread.Sleep(250);}
+                    }
+                    UpdateForm update=new UpdateForm(home);Application.Run(update);
+                    if(update.Failure!=null)throw new IOException("The update could not be installed. "+update.Failure.Message,update.Failure);
+                    Process.Start(new ProcessStartInfo(Deployment.Launcher){UseShellExecute=true});return 0;
+                }
                 Application.Run(new SetupForm());
 #elif LAUNCHER
                 using(InstallGate gate=Deployment.Acquire()) {
@@ -161,6 +173,33 @@ namespace BusinessLedgerDeployment {
             }
         }
 #if SETUP
+        internal static void UpdateArguments(string[] args,out int parent,out string home) {
+            parent=0;home=null;
+            if(args.Length!=3||args[0]!="/update"||!Int32.TryParse(args[1],out parent)||parent<=0||parent==Process.GetCurrentProcess().Id)
+                throw new InvalidOperationException("Invalid update handoff.");
+            Deployment.ValidateData(args[2]);home=Deployment.Full(args[2]);
+        }
+        internal static void WaitForParent(int parent,int timeout) {
+            try{using(Process process=Process.GetProcessById(parent)){if(!process.WaitForExit(timeout))throw new IOException("Ledger did not close. The update was not installed.");}}
+            catch(ArgumentException){} // The original process has already exited.
+        }
+        internal static void InstallFiles(string dataPath) {
+            using(InstallGate gate=Deployment.Acquire()) {
+                Deployment.EnsureClosed();Deployment.CheckVersion();Deployment.ValidateData(dataPath);
+                Deployment.StopOwnedDatabases(Deployment.Root,Path.Combine(Deployment.UserData,"database-locations.txt"));
+                string release=ReleaseInfo.Version+"-"+Guid.NewGuid().ToString("N"),destination=Path.Combine(Deployment.Root,"versions",release);
+                Directory.CreateDirectory(Deployment.Root);Deployment.NoReparseParents(Deployment.Root,Deployment.Root);Extract(destination);
+                string oldRelease=File.Exists(Deployment.Pointer)?File.ReadAllText(Deployment.Pointer):null,oldData=File.Exists(Deployment.DataPointer)?File.ReadAllText(Deployment.DataPointer):null;
+                try {
+                    ResourceFile("launcher.exe",Deployment.Launcher);ResourceFile("uninstaller.exe",Path.Combine(Deployment.Root,"Uninstall.exe"));
+                    Directory.CreateDirectory(Deployment.Full(dataPath));Deployment.AtomicText(Deployment.DataPointer,Deployment.Full(dataPath));Deployment.AtomicText(Deployment.Pointer,release);
+                    Deployment.Shortcut(Deployment.StartMenuLink);Deployment.Shortcut(Deployment.DesktopLink);Deployment.Register();
+                }catch {
+                    if(oldRelease!=null)Deployment.AtomicText(Deployment.Pointer,oldRelease);else if(File.Exists(Deployment.Pointer))File.Delete(Deployment.Pointer);
+                    if(oldData!=null)Deployment.AtomicText(Deployment.DataPointer,oldData);else if(File.Exists(Deployment.DataPointer))File.Delete(Deployment.DataPointer);throw;
+                }
+            }
+        }
         internal static void Extract(string destination) {
             Directory.CreateDirectory(destination);Deployment.NoReparseParents(destination,destination);
             using(Stream resource=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")) {
@@ -215,6 +254,24 @@ namespace BusinessLedgerDeployment {
 #endif
     }
 #if SETUP
+    internal sealed class UpdateForm : Form {
+        internal Exception Failure;
+        bool installing=true;
+        internal UpdateForm(string home) {
+            Text="Updating Business Ledger";Width=480;Height=150;StartPosition=FormStartPosition.CenterScreen;ControlBox=false;FormBorderStyle=FormBorderStyle.FixedDialog;
+            Controls.Add(new Label(){Text="Installing Business Ledger "+ReleaseInfo.Version+". The app will reopen when finished.",Dock=DockStyle.Top,Height=50,Padding=new Padding(12)});
+            Controls.Add(new ProgressBar(){Dock=DockStyle.Bottom,Height=24,Style=ProgressBarStyle.Marquee});
+            Shown+=(s,e)=>{
+                Thread worker=new Thread(()=>{
+                    try{Entry.InstallFiles(home);}catch(Exception ex){Failure=ex;}
+                    BeginInvoke((Action)(()=>{installing=false;Close();}));
+                });
+                // Shortcut creation uses COM; match the standard installer's STA context.
+                worker.SetApartmentState(ApartmentState.STA);worker.IsBackground=true;worker.Start();
+            };
+            FormClosing+=(s,e)=>{if(installing)e.Cancel=true;};
+        }
+    }
     internal sealed class SetupForm : Form {
         readonly TextBox data=new TextBox();readonly CheckBox launch=new CheckBox();readonly Button install=new Button();readonly Label status=new Label();
         internal SetupForm() {
@@ -234,22 +291,8 @@ namespace BusinessLedgerDeployment {
         }
         void Install(object sender,EventArgs e) {
             try {
-                using(InstallGate gate=Deployment.Acquire()) {
-                    Deployment.EnsureClosed();Deployment.CheckVersion();Deployment.ValidateData(data.Text);
-                    Deployment.StopOwnedDatabases(Deployment.Root,Path.Combine(Deployment.UserData,"database-locations.txt"));
-                    install.Enabled=false;status.Text="Installing application files...";status.Refresh();UseWaitCursor=true;
-                    string release=ReleaseInfo.Version+"-"+Guid.NewGuid().ToString("N"),destination=Path.Combine(Deployment.Root,"versions",release);
-                    Directory.CreateDirectory(Deployment.Root);Deployment.NoReparseParents(Deployment.Root,Deployment.Root);Entry.Extract(destination);
-                    string oldRelease=File.Exists(Deployment.Pointer)?File.ReadAllText(Deployment.Pointer):null,oldData=File.Exists(Deployment.DataPointer)?File.ReadAllText(Deployment.DataPointer):null;
-                    try {
-                        Entry.ResourceFile("launcher.exe",Deployment.Launcher);Entry.ResourceFile("uninstaller.exe",Path.Combine(Deployment.Root,"Uninstall.exe"));
-                        Directory.CreateDirectory(Deployment.Full(data.Text));Deployment.AtomicText(Deployment.DataPointer,Deployment.Full(data.Text));Deployment.AtomicText(Deployment.Pointer,release);
-                        Deployment.Shortcut(Deployment.StartMenuLink);Deployment.Shortcut(Deployment.DesktopLink);Deployment.Register();
-                    }catch {
-                        if(oldRelease!=null)Deployment.AtomicText(Deployment.Pointer,oldRelease);else if(File.Exists(Deployment.Pointer))File.Delete(Deployment.Pointer);
-                        if(oldData!=null)Deployment.AtomicText(Deployment.DataPointer,oldData);else if(File.Exists(Deployment.DataPointer))File.Delete(Deployment.DataPointer);throw;
-                    }
-                }
+                install.Enabled=false;status.Text="Installing application files...";status.Refresh();UseWaitCursor=true;
+                Entry.InstallFiles(data.Text);
                 UseWaitCursor=false;MessageBox.Show(this,"Business Ledger "+ReleaseInfo.Version+" is installed. Your ledger data was preserved.","Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                 if(launch.Checked)Process.Start(new ProcessStartInfo(Deployment.Launcher){UseShellExecute=true});Close();
             }catch(Exception ex){UseWaitCursor=false;install.Enabled=true;status.Text="Setup did not complete.";MessageBox.Show(this,ex.Message,"Business Ledger Setup",MessageBoxButtons.OK,MessageBoxIcon.Error);}

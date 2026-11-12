@@ -1,6 +1,6 @@
 # Business Ledger
 
-**Current version: 1.3.2.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. Close Ledger before installing and keep your existing ledger data folder selected to preserve accounts and records. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.4.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
 
 Business mileage requires a valid date and positive miles. From, To, and Business purpose are optional.
 
@@ -8,7 +8,7 @@ Business mileage requires a valid date and positive miles. From, To, and Busines
 
 When an update is found, the Dashboard shows a red exclamation mark, its version, and a **View update** button. The reminder stays visible after choosing Later and lets you reopen the download prompt without waiting for another check. It reflects updates detected in the current app session; a successful check with no newer version hides it.
 
-Version 1.3.0 and later check the public GitHub release feed in the background after login. A newer complete stable release prompts you to download its installer or view release notes. **Help > Check for updates** checks on demand. Download the installer, close Ledger, then run it with your existing data folder selected. No installer runs automatically. An unavailable network does not block normal use, and the check sends no financial data or login credentials. Users on older versions need to install 1.3.0 once to receive future prompts.
+Version 1.3.0 and later check the public GitHub release feed after login. **Help > Check for updates** checks on demand. Starting in 1.4.0, **Download update** downloads inside Ledger with progress and cancellation. The app checks size and SHA-256 against the published checksum. Choose **Install and restart** to complete any configured close-time backup, close the app, install into a new version folder, and reopen at login. The same ledger data folder is kept. Choosing Later retains the verified download for the current session. A failed download or canceled backup leaves Ledger open. Release notes still open in the browser. Network failures do not prevent normal use, and no financial data or login credentials are sent. Versions before 1.4.0 require one update using their existing browser/manual-install flow to gain in-app installation.
 
 Source commits alone do not trigger update notices. Publish a GitHub Release with a version tag (for example `v1.3.0`), `BusinessLedger-Setup-1.3.0.exe`, and `BusinessLedger-Setup-1.3.0.sha256`. Drafts, prereleases, incomplete uploads, and older versions are ignored. Use `Publish-Release.ps1` after building and verifying a release.
 
