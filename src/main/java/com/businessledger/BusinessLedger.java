@@ -16,9 +16,10 @@ import java.util.Locale;
 
 /** Single-user business ledger. All SQL values are bound parameters. */
 public final class BusinessLedger extends JFrame {
-    @Override public void dispose() { WindowsTaskbar.clear(this); super.dispose(); }
+    @Override public void dispose() { if(periodicBackups!=null)periodicBackups.close(); WindowsTaskbar.clear(this); super.dispose(); }
     private final Connection db;
-    private boolean closing;
+    private volatile boolean closing;
+    private PeriodicBackups periodicBackups;
     private DashboardPanel dashboard;
     private PayeeSuggestions payeeSuggestions;
     private JTextField transactionPayee;
@@ -1196,7 +1197,10 @@ public final class BusinessLedger extends JFrame {
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> { try { db.close(); } catch (SQLException ignored) {} }));
                 BusinessLedger ledger = new BusinessLedger(db, session.firstLogin());
                 ledger.loginName = session.name();
-                ledger.setTitle("Business Ledger " + AppVersion.version() + " - " + session.name()); ledger.setVisible(true);
+                ledger.setTitle("Business Ledger " + AppVersion.version() + " - " + session.name());
+                String database=db.getCatalog();
+                ledger.periodicBackups=new PeriodicBackups(()->server.connect(database),ledger.getTitle(),()->ledger.closing,ex->SwingUtilities.invokeLater(()->{if(ledger.isDisplayable()&&!ledger.closing)JOptionPane.showMessageDialog(ledger,"Timed backup failed: "+ex.getMessage()+"\nExisting backups are preserved. Ledger will try again in 10 minutes.","Automatic backup",JOptionPane.ERROR_MESSAGE);}));
+                ledger.setVisible(true);ledger.periodicBackups.start();
             } catch (Exception | LinkageError ex) {
                 JOptionPane.showMessageDialog(null, ex.toString(), "Business Ledger startup failed", JOptionPane.ERROR_MESSAGE);
             }

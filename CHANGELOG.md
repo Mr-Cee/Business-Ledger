@@ -1,5 +1,13 @@
 # Release history
 
+## 1.10.0 - 2026-11-12
+
+- Close-time automatic backups now retain the newest five per ledger. Added independent 10-minute backups, enabled by default, keeping five and skipping unchanged ledger data after an initial baseline.
+- Manual and pre-restore safety backups remain unlimited and are never counted or pruned, even when placed in an automatic backup folder. Existing legacy backups are left intact.
+- Backups publish a new complete snapshot before rotating older owned copies. Separate profile/type folders and ownership metadata protect other ledgers and backup kinds.
+- Timed work uses a dedicated connection and consistent snapshots; stored content fingerprints survive restarts and do not mark post-snapshot changes as already backed up. A successful manual snapshot can suppress redundant timed copies in the current session.
+- Added independent backup toggles in Settings; restoration preserves both local choices and the destination. No backup-format or database-schema change.
+
 ## 1.9.1 - 2026-11-12
 
 - Added a persistent temporary update cache, verified receipts and per-version locking. Reopening a downloaded release verifies and reuses the saved installer across restarts instead of downloading it again.

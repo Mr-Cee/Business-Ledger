@@ -12,7 +12,9 @@ import java.util.zip.*;
 
 /** Portable, data-only backups. Restore binds values into a fixed set of application tables. */
 final class LedgerBackup {
-    static final String AUTO="backup_auto_on_close",FOLDER="backup_folder";
+    static final String AUTO="backup_auto_on_close",FOLDER="backup_folder",TIMED="backup_every_ten_minutes";
+    private record Last(Path file,Path destination){}
+    private static final java.util.concurrent.ConcurrentMap<String,Last> LAST=new java.util.concurrent.ConcurrentHashMap<>();
     private record Table(String name,String columns,String types){
         String[] names(){return columns.split(",");}
     }
@@ -31,21 +33,25 @@ final class LedgerBackup {
         new Table("transfer_edits","id,transfer_id,edited_at,edited_by,reason,before_record,after_record","LLTSSJJ")
     );
     record Info(String ledger,String created){}
-    record Options(boolean automatic,Path folder){}
+    record Options(boolean automatic,Path folder,boolean timed){}
+    record Snapshot(Path path,String profile,String kind,long generation,String fingerprint,Instant created){}
     record Restored(Path safetyBackup){}
     private final Connection db;
     LedgerBackup(Connection db){this.db=db;}
     Options options()throws SQLException{
-        boolean enabled=false;Path folder=Path.of(System.getProperty("ledger.home","."),"backups",db.getCatalog()).toAbsolutePath().normalize();
-        try(PreparedStatement s=db.prepareStatement("SELECT name,value FROM ledger_settings WHERE name IN (?,?)")){
-            s.setString(1,AUTO);s.setString(2,FOLDER);try(ResultSet r=s.executeQuery()){while(r.next()){
-                if(AUTO.equals(r.getString(1)))enabled=Boolean.parseBoolean(r.getString(2));else folder=Path.of(r.getString(2)).toAbsolutePath().normalize();
+        boolean enabled=false,timed=true;Path folder=Path.of(System.getProperty("ledger.home","."),"backups",db.getCatalog()).toAbsolutePath().normalize();
+        try(PreparedStatement s=db.prepareStatement("SELECT name,value FROM ledger_settings WHERE name IN (?,?,?)")){
+            s.setString(1,AUTO);s.setString(2,FOLDER);s.setString(3,TIMED);try(ResultSet r=s.executeQuery()){while(r.next()){
+                if(AUTO.equals(r.getString(1)))enabled=Boolean.parseBoolean(r.getString(2));else if(TIMED.equals(r.getString(1)))timed=Boolean.parseBoolean(r.getString(2));else folder=Path.of(r.getString(2)).toAbsolutePath().normalize();
             }}
         }
-        return new Options(enabled,folder);
+        return new Options(enabled,folder,timed);
     }
     void saveOptions(boolean enabled,Path folder)throws SQLException{
-        setting(AUTO,Boolean.toString(enabled));setting(FOLDER,folder.toAbsolutePath().normalize().toString());
+        saveOptions(enabled,options().timed(),folder);
+    }
+    void saveOptions(boolean enabled,boolean timed,Path folder)throws SQLException{
+        setting(AUTO,Boolean.toString(enabled));setting(TIMED,Boolean.toString(timed));setting(FOLDER,folder.toAbsolutePath().normalize().toString());
     }
     private void setting(String name,String value)throws SQLException{
         try(PreparedStatement s=db.prepareStatement("INSERT INTO ledger_settings(name,value) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value")){
@@ -57,41 +63,71 @@ final class LedgerBackup {
         String stamp=LocalDateTime.now().format(DateTimeFormatter.ofPattern("uuuu-MM-dd_HH-mm-ss"));
         return folder.resolve(name+"_"+reason+"_"+stamp+"_"+UUID.randomUUID().toString().substring(0,8)+".ledgerbackup");
     }
-    void create(Path target,String ledger)throws Exception{
+    void create(Path target,String ledger)throws Exception{create(target,ledger,"",0,options().folder());}
+    void create(Path target,String ledger,String kind,long generation,Path destination)throws Exception{
         requireIdle();target=target.toAbsolutePath().normalize();Files.createDirectories(target.getParent());
         Path temp=Files.createTempFile(target.getParent(),"ledger-backup-",".tmp");
+        String profile=profile();
         int isolation=db.getTransactionIsolation();boolean readOnly=db.isReadOnly();
         try{
             db.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);db.setReadOnly(true);db.setAutoCommit(false);
             try(OutputStream file=Files.newOutputStream(temp);ZipOutputStream zip=new ZipOutputStream(file)){
                 Properties manifest=new Properties();manifest.setProperty("format","BusinessLedger");manifest.setProperty("version","3");manifest.setProperty("created",Instant.now().toString());manifest.setProperty("ledger",ledger);
+                manifest.setProperty("snapshot.profile",profile);manifest.setProperty("automatic.kind",kind);manifest.setProperty("automatic.generation",Long.toString(generation));
+                MessageDigest content=MessageDigest.getInstance("SHA-256");
                 for(Table table:TABLES){
                     zip.putNextEntry(new ZipEntry(table.name()+".data"));MessageDigest hash=MessageDigest.getInstance("SHA-256");
-                    DataOutputStream out=new DataOutputStream(new DigestOutputStream(zip,hash));writeText(out,table.columns());writeText(out,table.types());
-                    String where=table.name().equals("ledger_settings")?" WHERE name NOT IN ('"+AUTO+"','"+FOLDER+"')":"";
-                    long count;try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT COUNT(*) FROM "+table.name()+where)){r.next();count=r.getLong(1);}
-                    out.writeLong(count);
-                    try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT "+table.columns()+" FROM "+table.name()+where)){
-                        long written=0;while(r.next()){
-                            for(int col=0;col<table.types().length();col++){
-                                char type=table.types().charAt(col);Object value=switch(type){case 'D'->r.getObject(col+1,LocalDate.class);case 'T'->r.getObject(col+1,OffsetDateTime.class);default->r.getString(col+1);};
-                                writeText(out,value==null?null:value.toString());
-                            }written++;
-                        }if(written!=count)throw new IOException("Backup snapshot row count changed.");
-                    }
-                    out.flush();manifest.setProperty(table.name()+".sha256",HexFormat.of().formatHex(hash.digest()));zip.closeEntry();
+                    DataOutputStream out=new DataOutputStream(new DigestOutputStream(zip,hash));writeTable(table,out);
+                    out.flush();String digest=HexFormat.of().formatHex(hash.digest());manifest.setProperty(table.name()+".sha256",digest);content.update((table.name()+":"+digest+"\n").getBytes(StandardCharsets.UTF_8));zip.closeEntry();
                     if(hasIdentity(table)){
                         long next;try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT last_value,is_called FROM "+sequence(table))){r.next();next=Math.addExact(r.getLong(1),r.getBoolean(2)?1:0);}
                         manifest.setProperty(table.name()+".nextId",Long.toString(Math.max(next,nextAfterRows(table))));
                     }
                 }
+                manifest.setProperty("content.sha256",HexFormat.of().formatHex(content.digest()));
                 zip.putNextEntry(new ZipEntry("manifest.properties"));manifest.store(zip,"Business Ledger data backup");zip.closeEntry();
                 db.commit();
             }catch(Exception ex){db.rollback();throw ex;}
             finally{db.setAutoCommit(true);db.setReadOnly(readOnly);db.setTransactionIsolation(isolation);}
             try{Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}
             catch(AtomicMoveNotSupportedException ex){Files.move(temp,target,StandardCopyOption.REPLACE_EXISTING);}
+            LAST.put(profile,new Last(target,destination.toAbsolutePath().normalize()));
         }finally{Files.deleteIfExists(temp);}
+    }
+    String profile()throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest((db.getMetaData().getURL()+"|"+db.getCatalog()).getBytes(StandardCharsets.UTF_8)));}
+    Path lastSuccessful(Path destination)throws Exception{Last last=LAST.get(profile());return last!=null&&last.destination().equals(destination.toAbsolutePath().normalize())?last.file():null;}
+    static Snapshot snapshotInfo(Path path)throws Exception{
+        try(ZipFile zip=new ZipFile(path.toFile())){
+            Properties p=manifest(zip);String fingerprint=p.getProperty("content.sha256","");
+            if(!fingerprint.matches("[0-9a-f]{64}"))throw new IOException("Backup predates content fingerprints.");
+            return new Snapshot(path,p.getProperty("snapshot.profile",""),p.getProperty("automatic.kind",""),Long.parseLong(p.getProperty("automatic.generation","0")),fingerprint,Instant.parse(p.getProperty("created")));
+        }
+    }
+    private void writeTable(Table table,DataOutputStream out)throws Exception{
+        writeText(out,table.columns());writeText(out,table.types());
+        String where=table.name().equals("ledger_settings")?" WHERE name NOT IN ('"+AUTO+"','"+FOLDER+"','"+TIMED+"')":"";
+        long count;try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT COUNT(*) FROM "+table.name()+where)){r.next();count=r.getLong(1);}out.writeLong(count);
+        try(Statement s=db.createStatement();ResultSet r=s.executeQuery("SELECT "+table.columns()+" FROM "+table.name()+where+" ORDER BY "+table.columns())){
+            long written=0;while(r.next()){
+                for(int col=0;col<table.types().length();col++){
+                    char type=table.types().charAt(col);Object value=switch(type){case 'D'->r.getObject(col+1,LocalDate.class);case 'T'->r.getObject(col+1,OffsetDateTime.class);default->r.getString(col+1);};
+                    writeText(out,value==null?null:value.toString());
+                }written++;
+            }if(written!=count)throw new IOException("Backup snapshot row count changed.");
+        }
+    }
+    String fingerprint()throws Exception{
+        requireIdle();int isolation=db.getTransactionIsolation();boolean readOnly=db.isReadOnly();
+        db.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);db.setReadOnly(true);db.setAutoCommit(false);
+        try{
+            MessageDigest content=MessageDigest.getInstance("SHA-256");
+            for(Table table:TABLES){
+                MessageDigest hash=MessageDigest.getInstance("SHA-256");DataOutputStream out=new DataOutputStream(new DigestOutputStream(OutputStream.nullOutputStream(),hash));writeTable(table,out);out.flush();
+                content.update((table.name()+":"+HexFormat.of().formatHex(hash.digest())+"\n").getBytes(StandardCharsets.UTF_8));
+            }
+            db.commit();return HexFormat.of().formatHex(content.digest());
+        }catch(Exception ex){db.rollback();throw ex;}
+        finally{db.setAutoCommit(true);db.setReadOnly(readOnly);db.setTransactionIsolation(isolation);}
     }
     static Info inspect(Path path)throws Exception{
         try(ZipFile zip=new ZipFile(path.toFile())){Properties p=manifest(zip);return new Info(p.getProperty("ledger","Ledger"),p.getProperty("created","Unknown date"));}
@@ -142,7 +178,7 @@ final class LedgerBackup {
                     if(!MessageDigest.isEqual(HexFormat.of().parseHex(manifest.getProperty(table.name()+".sha256")),hash.digest()))throw new IOException("Backup checksum failed for "+table.name()+".");
                 }
                 // Local backup destination and automatic-backup preference belong to this PC.
-                saveOptions(local.automatic(),local.folder());
+                saveOptions(local.automatic(),local.timed(),local.folder());
                 for(Table table:TABLES)if(hasIdentity(table)&&zip.getEntry(table.name()+".data")!=null){
                     long next=Math.max(nextAfterRows(table),Long.parseLong(manifest.getProperty(table.name()+".nextId")));
                     try(Statement s=db.createStatement()){s.executeUpdate("ALTER SEQUENCE "+sequence(table)+" RESTART WITH "+next);}
