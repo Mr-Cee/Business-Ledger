@@ -14,6 +14,14 @@ final class HelpGuide extends JPanel {
     }
 
     static final List<Topic> TOPICS = List.of(
+        new Topic("Recently deleted", """
+            <h2>Recover an accidental deletion</h2>
+            <p>Open <b>Settings &gt; Recently deleted</b>, or click <b>Recently deleted</b> in Income &amp; expenses. Select one entry, review its date, amount or miles, payee/purpose and account details, then click <b>Restore selected</b>. Scroll sideways for more columns. Cancel is the default confirmation choice.</p>
+            <p>This covers income/expense transactions, transfers and mileage deleted after version 1.9.0 was installed. Entries remain available across restarts with no automatic expiry. Deletions from earlier versions cannot be recovered here; use an older backup if needed. Account, category and report-template removal are not part of this recovery list.</p>
+            <p>Restoration preserves the original record ID and data and reconnects existing transaction/transfer edit history. Transfers restore both account effects together. Balances and reports include restored records again. Archived accounts/categories stay archived; category renames are followed when restoring. A record already using the original ID is never overwritten.</p>
+            <p>A matching existing transaction triggers duplicate review. Approve only if the restored entry is separate and legitimate. New matches appearing during review stop restoration so you can review again. An entry can be restored only once; deleting it again creates a new recovery entry.</p>
+            <p>Deletion and restoration each save atomically, including who deleted/restored the entry and when. Restored entries leave the pending list while their recovery metadata is retained. New backups include pending entries and restoration history and require version 1.9.0 or newer. Older backup formats remain supported but have no recovery list; restoring an older snapshot replaces the current recovery list too.</p>
+            """),
         new Topic("Bulk editing", """
             <h2>Change several transactions together</h2>
             <ol><li>Open <b>Income &amp; expenses</b>. Filter or sort to find the transactions.</li><li>Use <b>Ctrl-click</b> for individual rows or <b>Shift-click</b> for a range. Only selected visible rows are included.</li><li>Click <b>Bulk edit selected</b>. Select Income/Expense transactions only; manage transfers separately on Accounts &amp; transfers.</li><li>Check <b>Change category</b>, <b>Change account</b>, or both. Choose active targets and enter a reason. Unchecked fields keep each row's original values.</li><li>Choose <b>Preview changes</b>. Review all selected IDs and their current/new values; scroll sideways for more columns. Already-correct rows show Unchanged.</li><li>Choose <b>Save changes</b> to apply the whole batch, or <b>Back</b> to adjust the choices. Canceling the editor writes nothing and keeps your selection.</li></ol>
@@ -35,7 +43,7 @@ final class HelpGuide extends JPanel {
             <p><b>Apply suggestion</b> copies the suggested category and account into the form. Review them before clicking Add transaction. Typing a name never changes your selections automatically. Suggestions do not change the date, amount, notes, or existing transactions, and do not run during imports or edits.</p>
             <p><b>Save payee rule</b> remembers the current category and account for this payee and type. Confirming replaces any existing rule for that name/type; it does not add a transaction. To change a rule, enter its payee/type, choose new values, and save again.</p>
             <p><b>Manage payee rules</b> lists saved rules and removes the selected rule. Removing a rule allows history-based suggestions again. Without a saved rule, the latest dated transaction with an active category and account supplies the suggestion (highest ID wins same-day ties).</p>
-            <p>Saved rules with an archived account/category stay visible but cannot be applied until you restore the choice or replace the rule. Category renames preserve rules. Rules belong to this login's ledger and are included in backups. New backups require version 1.6.0 or newer; older version-1 backups can still be restored and contain no saved rules.</p>
+            <p>Saved rules with an archived account/category stay visible but cannot be applied until you restore the choice or replace the rule. Category renames preserve rules. Rules belong to this login's ledger and are included in backups. New backups require version 1.9.0 or newer; older version-1 backups can still be restored and contain no saved rules.</p>
             """),
         new Topic("Getting started", """
             <h2>Your first ledger, step by step</h2>
@@ -128,7 +136,7 @@ final class HelpGuide extends JPanel {
             <h2>Record a business trip</h2>
             <p>Use this screen to keep a log of business driving.</p>
             <ol><li>Choose the trip <b>Date</b> (required).</li><li>Optionally enter <b>From</b> (where you started), <b>To</b> (where you went), and <b>Business purpose</b>. You can leave any or all three blank.</li><li>Enter <b>Miles</b> as a positive distance (required), then click <b>Add trip</b>.</li></ol>
-            <p>Review the trip in the table after saving. To remove a mistaken record, select its row and click <b>Delete selected</b>. Record the corrected trip if needed.</p>
+            <p>Review the trip in the table after saving. To remove a mistaken record, select its row and click <b>Delete selected</b>. Record the corrected trip if needed. Accidental deletions can be restored from Settings &gt; Recently deleted.</p>
             <p>Mileage is a distance record, not a money transaction. Recording miles does not automatically add an expense or change your bank balance. The Dashboard mileage card uses the selected dates.</p>
             """),
         new Topic("Date ranges", """
@@ -170,7 +178,7 @@ final class HelpGuide extends JPanel {
         new Topic("Backup, restore & moving PCs", """
             <h2>Save a recovery copy</h2>
             <ol><li>Open <b>Settings → Open settings</b> and scroll to <b>Backup &amp; restore</b>.</li><li>Click <b>Back up ledger...</b>.</li><li>Choose a folder and file name. Keep the .ledgerbackup ending. Wait for the success message.</li><li>Keep another copy somewhere safe, such as an external drive. A copy on the same PC cannot protect against losing that PC.</li></ol>
-            <p>Backups include the signed-in ledger's transactions, accounts, categories, transfers, mileage, edit history, report templates, and saved ledger preferences. They do not include login accounts or passwords. Treat backup files as private financial information.</p>
+            <p>Backups include the signed-in ledger's transactions, accounts, categories, transfers, mileage, edit history, report templates, and saved ledger preferences. They also include deleted-record recovery entries and restoration history. They do not include login accounts or passwords. Treat backup files as private financial information.</p>
             <h3>Automatic backups</h3>
             <p>Check <b>Back up this ledger when closing the app</b>, click <b>Choose folder...</b>, and choose a destination you can write to. Click <b>Save settings</b>. Close the app normally with its X button so it can run the backup. Force-closing through Task Manager can bypass it. If a backup fails, read the message and make a manual backup.</p>
             <h3>Restore a backup</h3>

@@ -1,6 +1,14 @@
 # Business Ledger
 
-**Current version: 1.8.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.9.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Undo accidental deletion
+
+Open Settings > Recently deleted, or use Recently deleted in Income & expenses. Select an entry, review its date, amount/miles and account details, then Restore selected. Cancel is the default. Transactions, transfers and mileage deleted after this update persist here across restarts without automatic expiry. Entries deleted by older versions cannot be recovered retroactively.
+
+Restoration preserves original IDs/data and reconnects transaction/transfer edit history. Transfers restore both account effects together. Restoring changes balances/reports; archived choices stay archived. Category renames are followed. A conflicting ID is never overwritten, and matching existing transactions require duplicate approval. Delete and restore operations are atomic and retain actor/time metadata. Restored entries leave the pending list; deleting again creates a new recovery entry.
+
+New format-3 backups include pending recovery entries and restoration history and require Business Ledger 1.9.0 or newer. Format-1/2 backups remain supported but restore with an empty recovery list. Restoring an older full backup replaces the current recovery list as well. Account/category/report-template removal is outside this recovery feature.
 
 ## Bulk editing
 
@@ -26,7 +34,7 @@ In **Income & expenses**, enter a familiar payee/customer and choose Income or E
 
 Choose a category/account and click **Save payee rule** to remember that preference. Saving the same payee and type replaces its rule. **Manage payee rules** lists saved rules and lets you remove one; to change a rule, save a replacement from the transaction form. Rules belong to the current login's ledger. Without a saved rule, suggestions use the latest dated transaction with an active category and account, breaking same-date ties by transaction ID. Partial names never match.
 
-Archived categories/accounts make their saved rules unavailable until restored or replaced. Renaming a category preserves saved rules. Removing a rule allows transaction-history suggestions again. Rules are included in new version-2 backups; old version-1 backups restore with no saved rules. Version-2 backups require Business Ledger 1.6.0 or newer.
+Archived categories/accounts make their saved rules unavailable until restored or replaced. Renaming a category preserves saved rules. Removing a rule allows transaction-history suggestions again. Rules are included in backups; version-1 backups restore with no saved rules. New format-3 backups require Business Ledger 1.9.0 or newer.
 
 ## Account ledgers
 
@@ -101,7 +109,7 @@ Credit card payments should be transfers from Checking to Credit, while credit c
 
 Select a transfer in Transfer history and use Edit selected transfer to change its date (with calendar), amount, source/destination accounts, or notes. A reason is required. Edited appears in Transfer history and on both corresponding main-ledger rows. View transfer edit history shows the editor, timestamp, reason, and before/after values. The change and its history save atomically, balances recalculate, and Cancel leaves the record untouched. Transfers retain their IDs and are not duplicated. The original archived accounts may be retained; new account choices must be active. Unchanged edits do not create history entries. Transfer history snapshots are retained after deletion, as with transaction edit history.
 
-Delete / archive account permanently deletes an unused zero-opening-balance account. An account referenced by transactions, transfers, or report templates, or with a nonzero opening balance, is archived instead. Archiving preserves history and balances and removes the account from new-entry choices. Use Restore account to make it available again.
+Delete / archive account permanently deletes an unused zero-opening-balance account. An account referenced by transactions, transfers, report templates, payee rules or recovery history, or with a nonzero opening balance, is archived instead. Archiving preserves history and balances and removes the account from new-entry choices. Use Restore account to make it available again.
 
 Report templates can filter to a specific account, including archived accounts, or all accounts. Detailed reports and CSV exports include the account name. These accounts track your financial records and do not connect to your bank.
 

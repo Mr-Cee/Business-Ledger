@@ -21,6 +21,7 @@ final class LedgerBackup {
         new Table("ledger_settings","name,value","SS"),
         new Table("accounts","id,name,account_type,opening_balance,active","LSSNB"),
         new Table("payee_rules","payee_key,kind,payee,category,account_id","SSSSL"),
+        new Table("deleted_records","id,relation,record_id,payload,category,account_id,second_account_id,deleted_at,deleted_by,restored_at,restored_by","LSLJSLLTSTS"),
         new Table("transactions","id,entry_date,kind,category,amount,party,notes,account_id","LDSSNSSL"),
         new Table("mileage","id,trip_date,origin,destination,purpose,miles","LDSSSN"),
         new Table("transfers","id,transfer_date,from_account_id,to_account_id,amount,notes","LDLLNS"),
@@ -63,7 +64,7 @@ final class LedgerBackup {
         try{
             db.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);db.setReadOnly(true);db.setAutoCommit(false);
             try(OutputStream file=Files.newOutputStream(temp);ZipOutputStream zip=new ZipOutputStream(file)){
-                Properties manifest=new Properties();manifest.setProperty("format","BusinessLedger");manifest.setProperty("version","2");manifest.setProperty("created",Instant.now().toString());manifest.setProperty("ledger",ledger);
+                Properties manifest=new Properties();manifest.setProperty("format","BusinessLedger");manifest.setProperty("version","3");manifest.setProperty("created",Instant.now().toString());manifest.setProperty("ledger",ledger);
                 for(Table table:TABLES){
                     zip.putNextEntry(new ZipEntry(table.name()+".data"));MessageDigest hash=MessageDigest.getInstance("SHA-256");
                     DataOutputStream out=new DataOutputStream(new DigestOutputStream(zip,hash));writeText(out,table.columns());writeText(out,table.types());
@@ -100,12 +101,13 @@ final class LedgerBackup {
         Set<String> found=new HashSet<>();Enumeration<? extends ZipEntry> entries=zip.entries();while(entries.hasMoreElements()){
             String name=entries.nextElement().getName();if(!expected.contains(name)||!found.add(name))throw new IOException("This is not a supported ledger backup.");
         }
-        if(!found.containsAll(expected.stream().filter(n->!n.equals("payee_rules.data")).toList()))throw new IOException("Backup is missing required data files.");
+        if(!found.containsAll(expected.stream().filter(n->!Set.of("payee_rules.data","deleted_records.data").contains(n)).toList()))throw new IOException("Backup is missing required data files.");
         Properties p=new Properties();try(InputStream in=zip.getInputStream(zip.getEntry("manifest.properties"))){byte[] bytes=in.readNBytes(65537);if(bytes.length>65536)throw new IOException("Invalid backup manifest.");p.load(new ByteArrayInputStream(bytes));}
-        if(!"BusinessLedger".equals(p.getProperty("format"))||!Set.of("1","2").contains(p.getProperty("version","")))throw new IOException("Unsupported ledger backup version.");
-        if("2".equals(p.getProperty("version"))&&!found.contains("payee_rules.data"))throw new IOException("Backup is missing payee rules.");
+        if(!"BusinessLedger".equals(p.getProperty("format"))||!Set.of("1","2","3").contains(p.getProperty("version","")))throw new IOException("Unsupported ledger backup version.");
+        if(Set.of("2","3").contains(p.getProperty("version"))&&!found.contains("payee_rules.data"))throw new IOException("Backup is missing payee rules.");
+        if("3".equals(p.getProperty("version"))&&!found.contains("deleted_records.data"))throw new IOException("Backup is missing deleted-record recovery data.");
         for(Table table:TABLES)if(found.contains(table.name()+".data")&&!p.getProperty(table.name()+".sha256","").matches("[0-9a-f]{64}"))throw new IOException("Backup checksum is missing.");
-        for(Table table:TABLES)if(hasIdentity(table)){
+        for(Table table:TABLES)if(hasIdentity(table)&&found.contains(table.name()+".data")){
             try{if(Long.parseLong(p.getProperty(table.name()+".nextId","0"))<1)throw new NumberFormatException();}
             catch(NumberFormatException ex){throw new IOException("Backup record numbering metadata is missing or invalid.");}
         }
@@ -123,7 +125,7 @@ final class LedgerBackup {
             try{
                 try(Statement s=db.createStatement()){s.executeUpdate("TRUNCATE "+String.join(",",TABLES.stream().map(Table::name).toList())+" RESTART IDENTITY");}
                 for(Table table:TABLES){
-                    if(zip.getEntry(table.name()+".data")==null)continue; // Version 1 backups predate payee rules.
+                    if(zip.getEntry(table.name()+".data")==null)continue; // Older backups predate optional recovery/rule tables.
                     MessageDigest hash=MessageDigest.getInstance("SHA-256");
                     try(DataInputStream in=new DataInputStream(new DigestInputStream(zip.getInputStream(zip.getEntry(table.name()+".data")),hash))){
                         if(!table.columns().equals(readText(in))||!table.types().equals(readText(in)))throw new IOException("Unsupported columns in "+table.name()+".");
@@ -141,7 +143,7 @@ final class LedgerBackup {
                 }
                 // Local backup destination and automatic-backup preference belong to this PC.
                 saveOptions(local.automatic(),local.folder());
-                for(Table table:TABLES)if(hasIdentity(table)){
+                for(Table table:TABLES)if(hasIdentity(table)&&zip.getEntry(table.name()+".data")!=null){
                     long next=Math.max(nextAfterRows(table),Long.parseLong(manifest.getProperty(table.name()+".nextId")));
                     try(Statement s=db.createStatement()){s.executeUpdate("ALTER SEQUENCE "+sequence(table)+" RESTART WITH "+next);}
                 }

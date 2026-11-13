@@ -91,7 +91,10 @@ public final class BusinessLedger extends JFrame {
                 }).setVisible(true);
             } catch(SQLException ex) { JOptionPane.showMessageDialog(this,ex.getMessage(),"Unable to load settings",JOptionPane.ERROR_MESSAGE); }
         });
-        settingsMenu.add(openSettings); menuBar.add(settingsMenu);
+        settingsMenu.add(openSettings);
+        JMenuItem recentlyDeleted=new JMenuItem("Recently deleted...");
+        recentlyDeleted.addActionListener(e->{try{showRecentlyDeleted();}catch(SQLException ex){JOptionPane.showMessageDialog(this,ex.getMessage(),"Recently deleted",JOptionPane.ERROR_MESSAGE);}});
+        settingsMenu.add(recentlyDeleted);menuBar.add(settingsMenu);
         JMenu help=new JMenu("Help");JMenuItem about=new JMenuItem("About Business Ledger");
         JMenuItem guide = new JMenuItem("Help guide...");
         guide.addActionListener(e -> HelpGuide.show(this, "Getting started"));
@@ -168,6 +171,7 @@ public final class BusinessLedger extends JFrame {
             s.executeUpdate("CREATE INDEX IF NOT EXISTS transaction_edits_transaction_idx ON transaction_edits(transaction_id)");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS transfer_edits (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, transfer_id BIGINT NOT NULL, edited_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, edited_by TEXT NOT NULL, reason TEXT NOT NULL CHECK(length(trim(reason))>0), before_record JSONB NOT NULL, after_record JSONB NOT NULL)");
             s.executeUpdate("CREATE INDEX IF NOT EXISTS transfer_edits_transfer_idx ON transfer_edits(transfer_id)");
+            s.executeUpdate(DeletedRecords.SCHEMA);s.executeUpdate(DeletedRecords.INDEX);
             s.executeUpdate("CREATE OR REPLACE VIEW account_balances AS SELECT a.*, a.opening_balance + COALESCE((SELECT SUM(CASE WHEN t.kind='Income' THEN t.amount ELSE -t.amount END) FROM transactions t WHERE t.account_id=a.id),0) + COALESCE((SELECT SUM(x.amount) FROM transfers x WHERE x.to_account_id=a.id),0) - COALESCE((SELECT SUM(x.amount) FROM transfers x WHERE x.from_account_id=a.id),0) AS balance FROM accounts a");
         }
         try (Statement s = db.createStatement(); ResultSet r = s.executeQuery("SELECT 1 FROM ledger_settings WHERE name='categories_initialized'")) {
@@ -301,6 +305,7 @@ public final class BusinessLedger extends JFrame {
         }));
         actions.add(button("View edit history", () -> viewEditHistory(selectedTransactionId(table))));
         actions.add(button("Delete selected", () -> { selectedTransactionId(table); delete(table, "transactions"); }));
+        actions.add(button("Recently deleted",this::showRecentlyDeleted));
         actions.add(button("Assign / change account", () -> editTransaction(selectedTransactionId(table))));
         JPanel header = new JPanel(new BorderLayout(4,4)); header.add(fields);
         payeeSuggestions=new PayeeSuggestions(db,party,kind,categories,transactionAccount);
@@ -529,8 +534,8 @@ public final class BusinessLedger extends JFrame {
             try (PreparedStatement s = db.prepareStatement("SELECT opening_balance FROM accounts WHERE id=? FOR UPDATE")) {
                 s.setLong(1, id); try (ResultSet r = s.executeQuery()) { if (!r.next()) throw new SQLException("Account no longer exists."); used = r.getBigDecimal(1).signum() != 0; }
             }
-            try (PreparedStatement s = db.prepareStatement("SELECT EXISTS(SELECT 1 FROM transactions WHERE account_id=?) OR EXISTS(SELECT 1 FROM transfers WHERE from_account_id=? OR to_account_id=?) OR EXISTS(SELECT 1 FROM report_templates WHERE account_id=?)")) {
-                bind(s, new Object[]{id,id,id,id}); try (ResultSet r = s.executeQuery()) { r.next(); used |= r.getBoolean(1); }
+            try (PreparedStatement s = db.prepareStatement("SELECT EXISTS(SELECT 1 FROM transactions WHERE account_id=?) OR EXISTS(SELECT 1 FROM transfers WHERE from_account_id=? OR to_account_id=?) OR EXISTS(SELECT 1 FROM report_templates WHERE account_id=?) OR EXISTS(SELECT 1 FROM deleted_records WHERE account_id=? OR second_account_id=?) OR EXISTS(SELECT 1 FROM payee_rules WHERE account_id=?)")) {
+                bind(s, new Object[]{id,id,id,id,id,id,id}); try (ResultSet r = s.executeQuery()) { r.next(); used |= r.getBoolean(1); }
             }
             execute(used ? "UPDATE accounts SET active=FALSE WHERE id=?" : "DELETE FROM accounts WHERE id=?", id);
             db.commit();
@@ -855,6 +860,7 @@ public final class BusinessLedger extends JFrame {
                 execute("INSERT INTO categories(name) VALUES (?)", name);
                 execute("UPDATE transactions SET category=? WHERE category=?", name, old);
                 execute("UPDATE payee_rules SET category=? WHERE category=?", name, old);
+                execute("UPDATE deleted_records SET category=? WHERE category=?", name, old);
                 execute("UPDATE report_templates SET category=? WHERE category=?", name, old);
                 execute("UPDATE report_template_categories SET category=? WHERE category=?",name,old);
                 execute("UPDATE ledger_settings SET value=? WHERE name=? AND value=?",name,IncomeScope.KEY,old);
@@ -994,12 +1000,13 @@ public final class BusinessLedger extends JFrame {
     }
 
     private void delete(JTable table, String relation) throws SQLException {
-        int row = table.getSelectedRow();
-        if (row < 0) throw new IllegalArgumentException("Select a record first.");
-        Object id = table.getModel().getValueAt(table.convertRowIndexToModel(row), 0);
-        if (JOptionPane.showConfirmDialog(this, "Permanently delete record " + id + "?", "Delete record", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-            execute("DELETE FROM " + relation + " WHERE id=?", id); refresh();
+        long id=selectedId(table);DeletedRecords.Original reviewed=DeletedRecords.original(db,DeletedRecords.Kind.of(relation),id,false);
+        if(JOptionPane.showOptionDialog(this,"Delete "+reviewed.kind().label+" #"+id+"?\nIt will leave the ledger and its totals. You can restore it from Settings > Recently deleted.","Delete record",JOptionPane.DEFAULT_OPTION,JOptionPane.WARNING_MESSAGE,null,new String[]{"Cancel","Delete"},"Cancel")==1){
+            DeletedRecords.delete(db,reviewed,loginName);refresh();dashboard.refreshSafely();
         }
+    }
+    private void showRecentlyDeleted()throws SQLException{
+        if(RecentlyDeletedDialog.show(this,db,loginName)){refresh();dashboard.refreshSafely();}
     }
 
     private void execute(String sql, Object... values) throws SQLException {

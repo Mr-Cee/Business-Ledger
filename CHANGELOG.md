@@ -1,5 +1,12 @@
 # Release history
 
+## 1.9.0 - 2026-11-12
+
+- Added Recently deleted under Settings and Income & expenses to restore transactions, transfers and mileage deleted after this update, including across restarts.
+- Delete/restore operations are atomic. Original IDs/data and edit history are retained, transfers restore both account effects, and conflicts never overwrite existing rows. Restoring matching transactions requires duplicate approval.
+- Recovery metadata records deletion/restoration actors and times. Referenced accounts are archived instead of removed; category renames are followed on restore.
+- Backup format 3 includes recovery entries/history. Formats 1 and 2 remain restorable with an empty recovery list; new backups require version 1.9.0 or newer.
+
 ## 1.8.0 - 2026-11-12
 
 - Added Bulk edit selected on Income & expenses: Ctrl-click or Shift-click multiple transactions, choose category/account changes and a required reason, then review every selected row before saving.
