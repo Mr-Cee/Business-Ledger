@@ -14,6 +14,14 @@ final class HelpGuide extends JPanel {
     }
 
     static final List<Topic> TOPICS = List.of(
+        new Topic("Automatic backups", """
+            <h2>Two independent sets of five</h2>
+            <p>In <b>Settings &gt; Backup &amp; restore</b>, close-time backups keep the newest five per ledger and follow your existing on/off choice. The separate <b>10-minute backups when data changes</b> option is on by default and keeps another five. Choose a folder and click <b>Save settings</b>.</p>
+            <p>The first timed run creates a baseline if none is known. Later runs save only when backed-up ledger data differs from the last known successful snapshot. A recent manual backup can also prevent an unnecessary timed copy during the current session. Backup preferences alone do not count as ledger changes. Unsaved form fields and uncommitted edits are not backed up.</p>
+            <p>Timed snapshots use a separate database connection, so you can keep editing. Changes made after a snapshot begins are detected on the next interval. If a backup fails, older copies are preserved and the app reports the problem. Repeated identical timed errors are reported once until a successful run.</p>
+            <p>Automatic sets are stored in separate per-ledger managed subfolders. New backups finish before old owned copies are removed. Manual and pre-restore safety backups are unlimited and never rotated, including manual copies saved in a managed folder. Existing older-version files remain untouched. Changing the destination leaves the old location intact.</p>
+            <p>Retention applies to recognized automatic files; unrecognized, damaged or unrelated files are preserved. File-permission errors may prevent trimming until corrected. Restore keeps this PC's backup toggles and destination.</p>
+            """),
         new Topic("Recently deleted", """
             <h2>Recover an accidental deletion</h2>
             <p>Open <b>Settings &gt; Recently deleted</b>, or click <b>Recently deleted</b> in Income &amp; expenses. Select one entry, review its date, amount or miles, payee/purpose and account details, then click <b>Restore selected</b>. Scroll sideways for more columns. Cancel is the default confirmation choice.</p>
@@ -180,7 +188,8 @@ final class HelpGuide extends JPanel {
             <ol><li>Open <b>Settings → Open settings</b> and scroll to <b>Backup &amp; restore</b>.</li><li>Click <b>Back up ledger...</b>.</li><li>Choose a folder and file name. Keep the .ledgerbackup ending. Wait for the success message.</li><li>Keep another copy somewhere safe, such as an external drive. A copy on the same PC cannot protect against losing that PC.</li></ol>
             <p>Backups include the signed-in ledger's transactions, accounts, categories, transfers, mileage, edit history, report templates, and saved ledger preferences. They also include deleted-record recovery entries and restoration history. They do not include login accounts or passwords. Treat backup files as private financial information.</p>
             <h3>Automatic backups</h3>
-            <p>Check <b>Back up this ledger when closing the app</b>, click <b>Choose folder...</b>, and choose a destination you can write to. Click <b>Save settings</b>. Close the app normally with its X button so it can run the backup. Force-closing through Task Manager can bypass it. If a backup fails, read the message and make a manual backup.</p>
+            <p>Close-time and 10-minute backups keep five each. The timed option is on by default and skips unchanged data after its first baseline. Manual/safety copies are unlimited. See <b>Automatic backups</b> for retention and destination details.</p>
+            <p>Check <b>Back up when closing the app (keep 5)</b>, click <b>Choose folder...</b>, and choose a destination you can write to. Click <b>Save settings</b>. Close the app normally with its X button so it can run the backup. Force-closing through Task Manager can bypass it. If a backup fails, read the message and make a manual backup.</p>
             <h3>Restore a backup</h3>
             <p><b>Restore replaces the data in the ledger you are currently signed into; it does not merge records.</b></p>
             <ol><li>Check that you are signed into the intended destination ledger.</li><li>Click <b>Restore ledger...</b> and choose the .ledgerbackup file.</li><li>Read the confirmation and safety-backup information carefully. Continue only if replacing this ledger is what you want.</li><li>Wait for completion, then check your accounts, transactions, and settings.</li></ol>
