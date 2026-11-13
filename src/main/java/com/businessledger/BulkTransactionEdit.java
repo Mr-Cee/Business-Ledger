@@ -6,14 +6,16 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
 
-/** Category/account changes with optimistic preview checks and atomic per-record audits. */
+/** Date/category/account changes with optimistic preview checks and atomic per-record audits. */
 final class BulkTransactionEdit {
     record Row(long id,LocalDate date,String type,BigDecimal amount,String payee,String notes,
                String category,Long accountId,String account,String snapshot){}
-    record Change(String category,Long accountId){
+    record Change(String category,Long accountId,LocalDate date){
+        Change(String category,Long accountId){this(category,accountId,null);}
+        LocalDate date(Row row){return date==null?row.date():date;}
         String category(Row row){return category==null?row.category():category;}
         Long accountId(Row row){return accountId==null?row.accountId():accountId;}
-        boolean changes(Row row){return !Objects.equals(category(row),row.category())||!Objects.equals(accountId(row),row.accountId());}
+        boolean changes(Row row){return !Objects.equals(date(row),row.date())||!Objects.equals(category(row),row.category())||!Objects.equals(accountId(row),row.accountId());}
     }
     record Result(int updated,int unchanged){}
     private static final String SELECT="SELECT t.id,t.entry_date,t.kind,t.amount,t.party,t.notes,t.category,t.account_id,COALESCE(a.name,'Unassigned'),(to_jsonb(t) || jsonb_build_object('account_name',COALESCE(a.name,'Unassigned')))::text FROM transactions t LEFT JOIN accounts a ON a.id=t.account_id WHERE t.id=?";
@@ -44,7 +46,7 @@ final class BulkTransactionEdit {
         return List.copyOf(rows);
     }
     static Result save(Connection db,List<Row> reviewed,Change change,String user,String reason)throws SQLException{
-        if(change.category()==null&&change.accountId()==null)throw new IllegalArgumentException("Choose a category or account to change.");
+        if(change.category()==null&&change.accountId()==null&&change.date()==null)throw new IllegalArgumentException("Choose a date, category or account to change.");
         if(reason==null||reason.isBlank())throw new IllegalArgumentException("Enter a reason for the bulk edit.");
         if(!db.getAutoCommit())throw new SQLException("Finish the current operation before bulk editing.");
         db.setAutoCommit(false);
@@ -60,10 +62,10 @@ final class BulkTransactionEdit {
             for(Row row:current)if(!row.snapshot().equals(expected.get(row.id()).snapshot()))
                 throw new SQLException("Transaction #"+row.id()+" changed after loading. Nothing changed; refresh and review the selection again.");
             int updated=0;
-            try(PreparedStatement update=db.prepareStatement("UPDATE transactions SET category=?,account_id=? WHERE id=?");
+            try(PreparedStatement update=db.prepareStatement("UPDATE transactions SET category=?,account_id=?,entry_date=? WHERE id=?");
                 PreparedStatement audit=db.prepareStatement("INSERT INTO transaction_edits(transaction_id,edited_by,reason,before_record,after_record) SELECT t.id,?,?,CAST(? AS JSONB),to_jsonb(t) || jsonb_build_object('account_name',COALESCE(a.name,'Unassigned')) FROM transactions t LEFT JOIN accounts a ON a.id=t.account_id WHERE t.id=?")){
                 for(Row row:current)if(change.changes(row)){
-                    update.setString(1,change.category(row));update.setObject(2,change.accountId(row));update.setLong(3,row.id());
+                    update.setString(1,change.category(row));update.setObject(2,change.accountId(row));update.setObject(3,change.date(row));update.setLong(4,row.id());
                     if(update.executeUpdate()!=1)throw new SQLException("Unable to update transaction #"+row.id());
                     audit.setString(1,user);audit.setString(2,reason.strip());audit.setString(3,row.snapshot());audit.setLong(4,row.id());
                     if(audit.executeUpdate()!=1)throw new SQLException("Unable to record edit history for #"+row.id());

@@ -1,5 +1,10 @@
 # Release history
 
+## 1.10.2 - 2026-11-13
+
+- Bulk editing now includes an optional date with a calendar picker. Review the current/new dates before applying one date to all selected transactions, alone or alongside category/account changes.
+- Date changes use the existing atomic batch save, stale-record protection and per-record edit history. Unchecked dates and already-correct rows are preserved.
+
 ## 1.10.1 - 2026-11-12
 
 - Double-click a record in Income & expenses or an account ledger to open the existing editor. Sorted and filtered rows resolve to the clicked record; modified clicks retain bulk-selection behavior.

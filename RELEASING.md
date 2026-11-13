@@ -68,6 +68,8 @@ DuplicateDetectionCheck verifies normalized keys and all-row review without a da
 
 ## Bulk editing (1.8.0)
 
+From 1.10.2, bulk changes also accept an optional typed LocalDate. The preview includes current/new dates; date-only and combined edits use the same transaction, stale snapshot comparison and per-record JSON audit. No schema changes. BulkTransactionEditCheck additionally verifies date-only changes, same-date no-ops, before/after date history, combined fields, stale dates and full rollback after an audit failure.
+
 No schema changes. BulkTransactionEdit locks selected transaction IDs in ascending order, compares full JSON snapshots with the reviewed records, validates and holds shared locks on active target choices, then writes changes and per-record audit history in one transaction. No database locks are held during user review. Unchanged rows produce no writes. Bulk editing is limited to category/account changes from Income & expenses; transfer rows are rejected before resolving transaction IDs.
 
 BulkTransactionEditCheck covers sorted/filtered/disjoint selection, transfer ID collisions and single-action guards. With a fresh disposable database on port 55439, it verifies before/after previews, per-row audit history, no-op handling, archived originals, active targets, stale/deleted rows and full rollback after a later audit failure.
