@@ -1,6 +1,12 @@
 # Business Ledger
 
-**Current version: 1.9.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.9.1.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Downloaded update cache
+
+Updates are saved under the Windows temporary folder in BusinessLedger-update-cache, with a separate folder per version. Choosing Later keeps a verified installer across app restarts. The updater checks this cache before downloading and verifies the saved file's size and SHA-256 against its stored verification receipt; valid cache hits require no installer or checksum download. Release discovery still checks GitHub for the available version. If the receipt is missing, the updater fetches the small checksum again and can reuse the existing installer if it matches. Changed, incomplete or unverified binaries are never installed.
+
+Install and restart launches from the cache. On the new version's startup, background cleanup removes cached installers/receipts for that version and older versions, retrying briefly while Windows still has the installer open. Earlier temporary download folders are also cleaned by exact installer filenames. Newer uninstalled updates and unrelated files are preserved; failed updates remain reusable. Cleanup is best effort and retried on later app starts if necessary. Tiny per-version lock files may remain. Windows can clear temporary storage, in which case Ledger downloads the update again.
 
 ## Undo accidental deletion
 

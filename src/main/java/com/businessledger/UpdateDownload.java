@@ -15,20 +15,17 @@ import java.util.function.*;
 
 /** Downloads are staged separately; only verified installers can reach the close/install flow. */
 final class UpdateDownload {
+    @FunctionalInterface interface Source {InputStream open(URI address)throws IOException;}
     static final long MAX_INSTALLER = 1_073_741_824L;
     record Ready(Path installer, String sha256, String version) {}
     private static boolean busy;
-    private static Ready pending;
 
     static void show(Window owner, UpdateChecker.Release release) {
         if (busy) return;
-        if (pending != null && pending.version().equals(release.version()) && Files.isRegularFile(pending.installer())) {
-            offerInstall(owner, pending); return;
-        }
         busy = true;
-        JDialog dialog = new JDialog(owner, "Downloading Business Ledger " + release.version(), Dialog.ModalityType.APPLICATION_MODAL);
+        JDialog dialog = new JDialog(owner, "Preparing Business Ledger " + release.version(), Dialog.ModalityType.APPLICATION_MODAL);
         JProgressBar bar = new JProgressBar(0, 100); bar.setStringPainted(true);
-        JLabel status = new JLabel("Preparing download..."); JButton cancel = new JButton("Cancel");
+        JLabel status = new JLabel("Checking temporary download cache..."); JButton cancel = new JButton("Cancel");
         JPanel panel = new JPanel(new BorderLayout(10, 12)); panel.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
         panel.add(status, BorderLayout.NORTH); panel.add(bar); JPanel actions = new JPanel(); actions.add(cancel); panel.add(actions, BorderLayout.SOUTH);
         dialog.add(panel); dialog.setSize(480, 170); dialog.setLocationRelativeTo(owner); dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -39,14 +36,14 @@ final class UpdateDownload {
             @Override protected void process(List<Long> counts) {
                 long count = counts.get(counts.size() - 1);
                 bar.setValue((int) Math.min(100, count * 100 / Math.max(1, release.size())));
-                status.setText(String.format(Locale.US, "Downloaded %.1f of %.1f MB", count / 1048576.0, release.size() / 1048576.0));
+                status.setText(String.format(Locale.US, "Checking / downloading %.1f of %.1f MB", count / 1048576.0, release.size() / 1048576.0));
                 if (count == release.size()) status.setText("Verifying downloaded installer...");
             }
             @Override protected void done() {
                 busy = false; dialog.dispose();
                 if (isCancelled()) return;
                 try {
-                    pending = get(); offerInstall(owner, pending);
+                    offerInstall(owner, get());
                 } catch (CancellationException ignored) { }
                 catch (Exception ex) { JOptionPane.showMessageDialog(owner, "The update was not installed.\n" + message(ex)
                     + "\nYou can continue using this version and try again later.", "Unable to update", JOptionPane.ERROR_MESSAGE); }
@@ -60,7 +57,7 @@ final class UpdateDownload {
     private static void offerInstall(Window owner, Ready ready) {
         int choice = JOptionPane.showOptionDialog(owner, "Business Ledger " + ready.version() + " is downloaded and verified.\n\n"
             + "Install and restart will close Ledger, install the update, and reopen it.\nYour data folder is preserved. Sign in again after restarting.\n"
-            + "Your automatic backup-on-close preference will still apply.", "Update ready", JOptionPane.DEFAULT_OPTION,
+            + "Your automatic backup-on-close preference will still apply.\nChoose Later to keep this verified temporary download, including across restarts.", "Update ready", JOptionPane.DEFAULT_OPTION,
             JOptionPane.INFORMATION_MESSAGE, null, new String[]{"Install and restart", "Later"}, "Install and restart");
         if (choice == 0 && owner instanceof BusinessLedger ledger) ledger.installUpdate(ready);
     }
@@ -68,10 +65,16 @@ final class UpdateDownload {
     private static String message(Exception ex) { Throwable cause = ex.getCause() == null ? ex : ex.getCause(); return cause.getMessage() == null ? cause.toString() : cause.getMessage(); }
 
     static Ready download(UpdateChecker.Release release, BooleanSupplier canceled, LongConsumer progress) throws Exception {
+        return download(release,canceled,progress,Path.of(System.getProperty("java.io.tmpdir")),UpdateDownload::open);
+    }
+    static Ready download(UpdateChecker.Release release,BooleanSupplier canceled,LongConsumer progress,Path temporary,Source source)throws Exception{
         if (release.checksum() == null || release.size() <= 0 || release.size() > MAX_INSTALLER) throw new IOException("The release has invalid download information.");
+        UpdateChecker.compare(release.version(),release.version());
+        if(!allowed(release.installer())||!allowed(release.checksum()))throw new IOException("Untrusted update download address.");
         if (canceled.getAsBoolean()) throw new CancellationException();
+        Ready cached=UpdateCache.cached(temporary,release,canceled,progress);if(cached!=null)return cached;
         String expected;
-        try (InputStream in = open(release.checksum())) {
+        try (InputStream in = source.open(release.checksum())) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(); byte[] buffer = new byte[512];
             long deadline = System.nanoTime() + 30_000_000_000L;
             for (int read; (read = in.read(buffer)) != -1;) {
@@ -82,16 +85,7 @@ final class UpdateDownload {
             expected = checksum(bytes.toString(StandardCharsets.UTF_8), "BusinessLedger-Setup-" + release.version() + ".exe");
         }
         if (canceled.getAsBoolean()) throw new CancellationException();
-        Path directory = Files.createTempDirectory("BusinessLedger-update-");
-        Path installer = directory.resolve("BusinessLedger-Setup-" + release.version() + ".exe");
-        boolean verified = false;
-        try {
-            try (InputStream input = open(release.installer()); OutputStream output = Files.newOutputStream(installer, StandardOpenOption.CREATE_NEW)) {
-                copyVerified(input, output, release.size(), expected, canceled, progress);
-            }
-            if (canceled.getAsBoolean()) throw new CancellationException();
-            verified = true; return new Ready(installer, expected, release.version());
-        } finally { if (!verified) { Files.deleteIfExists(installer); Files.deleteIfExists(directory); } }
+        return UpdateCache.obtain(temporary,release,expected,()->source.open(release.installer()),canceled,progress);
     }
 
     static String checksum(String text, String file) throws IOException {

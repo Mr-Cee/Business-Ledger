@@ -1,5 +1,12 @@
 # Release history
 
+## 1.9.1 - 2026-11-12
+
+- Added a persistent temporary update cache, verified receipts and per-version locking. Reopening a downloaded release verifies and reuses the saved installer across restarts instead of downloading it again.
+- Missing receipts refresh the small checksum file; corrupt or incomplete installers are replaced only after a new download verifies. Cancellation and failures do not expose partial installers.
+- New-version startup removes cached installers/receipts for the installed version and older versions, including legacy download folders, with background retries for Windows file locks. Newer uninstalled updates and unrelated files are preserved.
+- Update prompts identify saved downloads; installation still rechecks the installer hash immediately before launch.
+
 ## 1.9.0 - 2026-11-12
 
 - Added Recently deleted under Settings and Income & expenses to restore transactions, transfers and mileage deleted after this update, including across restarts.

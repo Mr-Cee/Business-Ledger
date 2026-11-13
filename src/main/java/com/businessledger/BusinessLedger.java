@@ -1185,6 +1185,7 @@ public final class BusinessLedger extends JFrame {
         SwingUtilities.invokeLater(() -> {
             try {
                 AppPaths.initialize();
+                UpdateCache.cleanupInstalled();
                 AppTheme.initialize();
                 LocalDatabase.Server server = LocalDatabase.openServer();
                 if (server == null) return;

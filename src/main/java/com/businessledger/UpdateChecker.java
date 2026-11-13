@@ -69,9 +69,10 @@ final class UpdateChecker {
     static void showAvailable(Window owner) {
         Release release = available;
         if (release == null) { check(owner, true); return; }
-        Object[] choices = {"Download update", "View release notes", "Later"};
+        boolean saved=UpdateCache.present(release);
+        Object[] choices = {saved?"Use downloaded update":"Download update", "View release notes", "Later"};
         int choice = JOptionPane.showOptionDialog(owner, "Business Ledger " + release.version() + " is available.\n"
-            + "You are using " + AppVersion.version() + ".\n\nDownload and verify the update inside Ledger.\n"
+            + "You are using " + AppVersion.version() + ".\n\n"+(saved?"A temporary download is saved. Ledger will verify it before reuse.\n":"Download and verify the update inside Ledger.\n")
             + "You can then choose Install and restart. Your ledger data folder will be kept.",
             "Update available", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, choices, choices[0]);
         if (choice == 0) UpdateDownload.show(owner, release);
