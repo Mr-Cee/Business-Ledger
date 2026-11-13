@@ -1,6 +1,14 @@
 # Business Ledger
 
-**Current version: 1.9.1.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+**Current version: 1.10.0.** [Download published installers](https://github.com/Mr-Cee/Business-Ledger/releases/latest). Java, PostgreSQL 17, and the Microsoft C++ runtime dependencies are included for Windows 10/11 x64. No additional runtime downloads are needed. The installer is unsigned. For a manual installation, close Ledger and keep your existing ledger data folder selected. See [RELEASING.md](RELEASING.md) for builds, installation, and verification limits.
+
+## Automatic backup retention
+
+Settings > Backup & restore has separate options for close-time and 10-minute backups. Close-time backups follow your existing enable/disable choice and keep the newest **5**. The new timed option is on by default, runs every **10 minutes** while the app is open, and keeps its own **5**. Its first run creates a baseline if none is known; subsequent intervals save only when backed-up ledger data differs from the last known successful snapshot. Successful manual snapshots also prevent redundant timed copies during that session.
+
+The two automatic sets live in separate profile-specific managed folders under the selected backup folder. A new complete backup is written before older owned copies are removed. Manual and pre-restore safety backups are unlimited, do not count toward either limit, and are never rotated—even if you put them inside a managed folder. Existing backups from earlier versions are left untouched because they lack reliable ownership/type metadata. Changing destinations starts a managed set in the new location and leaves the old location untouched.
+
+Timed backups use a separate database connection and a consistent snapshot, so normal editing can continue. Uncommitted changes and unsaved form fields are not copied. If records change after a snapshot starts, the next interval detects them. Backup-option changes alone do not create another timed backup. Failures keep earlier copies and report the error; automatic work stops when the app exits. Backup format 3 remains unchanged and restores preserve local close/timed toggles and the destination.
 
 ## Downloaded update cache
 

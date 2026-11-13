@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 final class BackupControls extends JPanel {
     private final LedgerBackup backups;
     private final JCheckBox automatic=new JCheckBox("Back up this ledger when closing the app");
+    private final JCheckBox timed=new JCheckBox("10-minute backups when data changes (keep 5)");
     private final JTextField folder=new JTextField(24);
     private final Runnable restored;
     BackupControls(Connection db,Runnable restored){
@@ -22,15 +23,15 @@ final class BackupControls extends JPanel {
         WrapPanel actions=new WrapPanel();actions.setAlignmentX(LEFT_ALIGNMENT);
         JButton create=new JButton("Back up ledger...");create.addActionListener(e->backup());actions.add(create);
         JButton restore=new JButton("Restore ledger...");restore.addActionListener(e->restore());actions.add(restore);fields.add(actions);
-        automatic.setAlignmentX(LEFT_ALIGNMENT);fields.add(automatic);
+        automatic.setText("Back up when closing the app (keep 5)");automatic.setAlignmentX(LEFT_ALIGNMENT);fields.add(automatic);timed.setAlignmentX(LEFT_ALIGNMENT);fields.add(timed);
         WrapPanel destination=new WrapPanel();destination.setAlignmentX(LEFT_ALIGNMENT);destination.addField("Backup folder",folder);
         JButton browse=new JButton("Choose folder...");browse.addActionListener(e->{JFileChooser chooser=new JFileChooser();chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);if(chooser.showOpenDialog(this)==JFileChooser.APPROVE_OPTION)folder.setText(chooser.getSelectedFile().toString());});destination.add(browse);fields.add(destination);
-        JLabel caption=new JLabel("Automatic and safety backups use this folder. Click Save settings below.");caption.setFont(caption.getFont().deriveFont(11f));caption.setAlignmentX(LEFT_ALIGNMENT);fields.add(caption);add(fields);
+        JTextArea caption=new JTextArea("Close-time and timed backups keep 5 each in separate managed folders. Manual and safety backups are unlimited. Click Save settings below.",3,0);caption.setEditable(false);caption.setLineWrap(true);caption.setWrapStyleWord(true);caption.setBackground(getBackground());caption.setFont(caption.getFont().deriveFont(11f));caption.setAlignmentX(LEFT_ALIGNMENT);fields.add(caption);add(fields);
     }
-    void reload()throws SQLException{LedgerBackup.Options options=backups.options();automatic.setSelected(options.automatic());folder.setText(options.folder().toString());}
+    void reload()throws SQLException{LedgerBackup.Options options=backups.options();automatic.setSelected(options.automatic());timed.setSelected(options.timed());folder.setText(options.folder().toString());}
     void save()throws SQLException{
         if(folder.getText().isBlank())throw new IllegalArgumentException("Choose a backup folder.");
-        backups.saveOptions(automatic.isSelected(),Path.of(folder.getText().trim()));
+        backups.saveOptions(automatic.isSelected(),timed.isSelected(),Path.of(folder.getText().trim()));
     }
     private String ledgerName(){Window owner=SwingUtilities.getWindowAncestor(this);return owner instanceof Dialog dialog&&dialog.getOwner() instanceof JFrame frame?frame.getTitle():"Business Ledger";}
     private JFileChooser files()throws SQLException{
@@ -78,8 +79,7 @@ final class BackupControls extends JPanel {
             if(!options.automatic()){close.run();return;}
             while(true){
                 try{
-                    Path target=LedgerBackup.datedFile(options.folder(),owner.getTitle(),"automatic");
-                    String name=owner.getTitle();work(owner,"Backing up before closing...",()->{backups.create(target,name);return target;});close.run();return;
+                    String name=owner.getTitle();work(owner,"Backing up before closing...",()->AutomaticBackups.take(db,AutomaticBackups.Kind.CLOSING,name));close.run();return;
                 }catch(Exception ex){
                     int choice=JOptionPane.showOptionDialog(owner,"Automatic backup failed: "+ex.getMessage(),"Backup before closing",JOptionPane.DEFAULT_OPTION,JOptionPane.ERROR_MESSAGE,null,new String[]{"Try again","Close without backup","Cancel"},"Cancel");
                     if(choice==1){close.run();return;}if(choice!=0)return;
