@@ -1,5 +1,9 @@
 # Release history
 
+## 1.10.1 - 2026-11-12
+
+- Double-click a record in Income & expenses or an account ledger to open the existing editor. Sorted and filtered rows resolve to the clicked record; modified clicks retain bulk-selection behavior.
+
 ## 1.10.0 - 2026-11-12
 
 - Close-time automatic backups now retain the newest five per ledger. Added independent 10-minute backups, enabled by default, keeping five and skipping unchanged ledger data after an initial baseline.

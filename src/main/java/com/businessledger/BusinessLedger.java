@@ -272,7 +272,7 @@ public final class BusinessLedger extends JFrame {
         JButton category = button("Manage categories", this::manageCategories);
         LedgerTable table = new LedgerTable(transactions); table.setAutoCreateRowSorter(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        table.setToolTipText("Ctrl-click or Shift-click to select transactions, then choose Bulk edit selected. Single-record actions require one row.");
+        table.setToolTipText("Double-click a transaction to edit it. Ctrl-click or Shift-click to select transactions, then choose Bulk edit selected. Single-record actions require one row.");
         JCheckBox colorRows = new JCheckBox("Color rows (red = money out, green = money in)");
         try (Statement s = db.createStatement(); ResultSet r = s.executeQuery("SELECT value FROM ledger_settings WHERE name='color_ledger_rows'")) {
             if (r.next()) colorRows.setSelected(Boolean.parseBoolean(r.getString(1)));
@@ -298,7 +298,8 @@ public final class BusinessLedger extends JFrame {
         table.getTableHeader().setToolTipText("Running balance is per account, oldest date first. Same-day transfers precede transactions; transactions follow ID order. Unassigned entries have no account balance.");
         JPanel actions = new WrapPanel(); actions.add(save); actions.add(category);
         actions.add(button("Import CSV", () -> { if(CsvImportWizard.showImport(this,db)) refresh(); }));
-        actions.add(button("Edit selected", () -> editTransaction(selectedTransactionId(table))));
+        JButton editRecord=button("Edit selected", () -> editTransaction(selectedTransactionId(table)));
+        actions.add(editRecord);TableRecordEdit.install(table,editRecord);
         actions.add(button("Bulk edit selected", () -> {
             java.util.List<Long> ids=BulkTransactionEdit.selectedIds(table);
             try{if(BulkEditDialog.show(this,db,ids,loginName)){refresh();dashboard.refreshSafely();}}

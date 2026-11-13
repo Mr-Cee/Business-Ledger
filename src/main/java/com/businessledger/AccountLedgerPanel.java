@@ -62,7 +62,7 @@ final class AccountLedgerPanel extends JPanel {
         JPanel records=new JPanel(new BorderLayout());records.add(filters,BorderLayout.NORTH);records.add(new JScrollPane(table));add(records);
         WrapPanel actions=new WrapPanel();
         JButton refresh=new JButton("Refresh ledger");refresh.addActionListener(e->reloadSafely());actions.add(refresh);
-        JButton editButton=new JButton("Edit selected");editButton.addActionListener(e->act(edit));actions.add(editButton);
+        JButton editButton=new JButton("Edit selected");editButton.addActionListener(e->act(edit));actions.add(editButton);TableRecordEdit.install(table,editButton);
         JButton historyButton=new JButton("View edit history");historyButton.addActionListener(e->act(history));actions.add(historyButton);
         add(actions,BorderLayout.SOUTH);reload();filters.setDates(start,end);
     }
